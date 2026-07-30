@@ -1,10 +1,10 @@
 // ==========================================
-// BESTLIFE - ENGINE (ГАРАНТИРОВАННАЯ КАРТА)
+// BESTLIFE - ENGINE (ЗУМ, ГРАНИЦЫ И КАРТА)
 // ==========================================
 
 const GRID_SIZE = 18;
-const TILE_WIDTH = 90;
-const TILE_HEIGHT = 45;
+const TILE_WIDTH = 80;
+const TILE_HEIGHT = 40;
 
 const MAP_DATA = [];
 
@@ -12,14 +12,16 @@ const MAP_DATA = [];
 const camera = {
     x: 0,
     y: 0,
-    zoom: 0.8,
+    zoom: 0.45, // Идеальный начальный зум (карта целиком на экране)
+    minZoom: 0.35,
+    maxZoom: 1.6,
     isDragging: false,
     lastX: 0,
     lastY: 0,
     touchPinchDist: 0
 };
 
-// Загрузка пользовательской картинки города (если она есть)
+// Проверка пользовательской текстуры `city_map.png`
 const customMapImg = new Image();
 let hasCustomImage = false;
 customMapImg.src = 'city_map.png';
@@ -28,30 +30,25 @@ customMapImg.onload = () => {
     render();
 };
 
-// Генерация карты города по умолчанию
+// Генерация карты по умолчанию
 function generateMapData() {
     for (let r = 0; r < GRID_SIZE; r++) {
         MAP_DATA[r] = [];
         for (let c = 0; c < GRID_SIZE; c++) {
-            // Река
             if (c === 8 || c === 9) {
                 MAP_DATA[r][c] = { type: 'water' };
-            }
-            // Дорожная сеть
-            else if (r === 4 || r === 12 || c === 3 || c === 14) {
+            } else if (r === 4 || r === 12 || c === 3 || c === 14) {
                 MAP_DATA[r][c] = { type: 'road' };
-            }
-            // Здания и парки
-            else {
+            } else {
                 const seed = (r * 11 + c * 23) % 100;
                 if (seed < 20) {
                     MAP_DATA[r][c] = { type: 'park' };
                 } else if (seed < 50) {
-                    MAP_DATA[r][c] = { type: 'house', height: 40, wallColor: '#e2e8f0', roofColor: '#ef4444' };
+                    MAP_DATA[r][c] = { type: 'house', height: 35, wallColor: '#e2e8f0', roofColor: '#ef4444' };
                 } else if (seed < 80) {
-                    MAP_DATA[r][c] = { type: 'office', height: 80, wallColor: '#334155', roofColor: '#3b82f6' };
+                    MAP_DATA[r][c] = { type: 'office', height: 75, wallColor: '#334155', roofColor: '#3b82f6' };
                 } else {
-                    MAP_DATA[r][c] = { type: 'skyscraper', height: 130, wallColor: '#1e293b', roofColor: '#0284c7' };
+                    MAP_DATA[r][c] = { type: 'skyscraper', height: 120, wallColor: '#1e293b', roofColor: '#0284c7' };
                 }
             }
         }
@@ -89,14 +86,31 @@ function startGame() {
     centerMap();
     setupControls();
     
-    // Постоянный цикл отрисовки
     requestAnimationFrame(renderLoop);
 }
 
 function centerMap() {
-    camera.zoom = window.innerWidth < 600 ? 0.7 : 1.0;
+    camera.zoom = window.innerWidth < 600 ? 0.45 : 0.65;
+    // Центрируем камеру строго по центру карты
     camera.x = canvas.width / 2;
-    camera.y = canvas.height * 0.25;
+    camera.y = canvas.height / 2 - (GRID_SIZE * TILE_HEIGHT * camera.zoom) / 2;
+    clampCamera();
+}
+
+// Ограничение камеры, чтобы нельзя было уйти за пределы карты
+function clampCamera() {
+    const mapWidth = GRID_SIZE * TILE_WIDTH * camera.zoom;
+    const mapHeight = GRID_SIZE * TILE_HEIGHT * camera.zoom;
+
+    // Оставляем небольшой кусочек карты видимым на границах
+    const marginX = canvas.width * 0.75;
+    const marginY = canvas.height * 0.75;
+
+    if (camera.x > canvas.width / 2 + mapWidth / 2 + marginX) camera.x = canvas.width / 2 + mapWidth / 2 + marginX;
+    if (camera.x < canvas.width / 2 - mapWidth / 2 - marginX) camera.x = canvas.width / 2 - mapWidth / 2 - marginX;
+    
+    if (camera.y > canvas.height / 2 + mapHeight / 2 + marginY) camera.y = canvas.height / 2 + mapHeight / 2 + marginY;
+    if (camera.y < canvas.height / 2 - mapHeight / 2 - marginY) camera.y = canvas.height / 2 - mapHeight / 2 - marginY;
 }
 
 function resizeCanvas() {
@@ -107,7 +121,6 @@ function resizeCanvas() {
 window.addEventListener('resize', () => {
     if (!gameScreen.classList.contains('hidden')) {
         resizeCanvas();
-        centerMap();
     }
 });
 
@@ -130,15 +143,13 @@ function isoToScreen(r, c) {
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Если загружена картинка `city_map.png`, отображаем её!
     if (hasCustomImage) {
         const w = customMapImg.width * camera.zoom;
         const h = customMapImg.height * camera.zoom;
-        ctx.drawImage(customMapImg, camera.x - w / 2, camera.y, w, h);
+        ctx.drawImage(customMapImg, camera.x - w / 2, camera.y - h / 2, w, h);
         return;
     }
 
-    // Иначе генерируем яркий изометрический город
     const w = TILE_WIDTH * camera.zoom;
     const h = TILE_HEIGHT * camera.zoom;
 
@@ -147,10 +158,8 @@ function render() {
             const pos = isoToScreen(r, c);
             const tile = MAP_DATA[r][c];
 
-            // 1. Зеленая трава / Дороги / Река
             drawTileBase(pos.x, pos.y, w, h, tile);
 
-            // 2. 3D Дома
             if (tile.height) {
                 drawBuilding(pos.x, pos.y, w, h, tile);
             }
@@ -167,17 +176,9 @@ function drawTileBase(x, y, w, h, tile) {
     ctx.closePath();
 
     if (tile.type === 'road') {
-        ctx.fillStyle = '#3b4252';
+        ctx.fillStyle = '#334155';
         ctx.fill();
-        ctx.strokeStyle = '#2e3440';
-        ctx.stroke();
-
-        // Белая полоса
-        ctx.strokeStyle = '#eceff4';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x - w / 4, y + h / 4);
-        ctx.lineTo(x + w / 4, y + h * 0.75);
+        ctx.strokeStyle = '#1e293b';
         ctx.stroke();
     } else if (tile.type === 'water') {
         ctx.fillStyle = '#0284c7';
@@ -187,12 +188,7 @@ function drawTileBase(x, y, w, h, tile) {
     } else if (tile.type === 'park') {
         ctx.fillStyle = '#10b981';
         ctx.fill();
-        ctx.fillStyle = '#047857';
-        ctx.beginPath();
-        ctx.arc(x, y + h / 2, 6 * camera.zoom, 0, Math.PI * 2);
-        ctx.fill();
     } else {
-        // Яркая зеленая трава
         ctx.fillStyle = '#22c55e';
         ctx.fill();
         ctx.strokeStyle = '#16a34a';
@@ -212,7 +208,6 @@ function drawBuilding(x, y, w, h, tile) {
     ctx.closePath();
     ctx.fillStyle = adjustColor(tile.wallColor, -20);
     ctx.fill();
-    ctx.stroke();
 
     // Правая стена
     ctx.beginPath();
@@ -223,7 +218,6 @@ function drawBuilding(x, y, w, h, tile) {
     ctx.closePath();
     ctx.fillStyle = adjustColor(tile.wallColor, -40);
     ctx.fill();
-    ctx.stroke();
 
     // Крыша
     ctx.beginPath();
@@ -234,7 +228,6 @@ function drawBuilding(x, y, w, h, tile) {
     ctx.closePath();
     ctx.fillStyle = tile.roofColor;
     ctx.fill();
-    ctx.stroke();
 }
 
 function adjustColor(col, amt) {
@@ -246,7 +239,7 @@ function adjustColor(col, amt) {
 }
 
 // ------------------------------------------
-// СДВИГ КАРТЫ ПАЛЬЦЕМ ИЛИ МЫШЬЮ
+// ПЛАВНЫЙ ЗУМ К ЦЕНТРУ И УПРАВЛЕНИЕ КАРТОЙ
 // ------------------------------------------
 function setupControls() {
     canvas.addEventListener('mousedown', (e) => {
@@ -261,12 +254,13 @@ function setupControls() {
             camera.y += e.clientY - camera.lastY;
             camera.lastX = e.clientX;
             camera.lastY = e.clientY;
+            clampCamera();
         }
     });
 
     window.addEventListener('mouseup', () => camera.isDragging = false);
 
-    // Касание пальцем
+    // Тач-управление (перемещение и плавный пинч-зум)
     canvas.addEventListener('touchstart', (e) => {
         if (e.touches.length === 1) {
             camera.isDragging = true;
@@ -287,14 +281,17 @@ function setupControls() {
             camera.y += e.touches[0].clientY - camera.lastY;
             camera.lastX = e.touches[0].clientX;
             camera.lastY = e.touches[0].clientY;
+            clampCamera();
         } else if (e.touches.length === 2) {
             const dist = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
             const factor = dist / camera.touchPinchDist;
-            if (camera.zoom * factor >= 0.4 && camera.zoom * factor <= 2.0) {
-                camera.zoom *= factor;
+            const newZoom = camera.zoom * factor;
+            if (newZoom >= camera.minZoom && newZoom <= camera.maxZoom) {
+                camera.zoom = newZoom;
+                clampCamera();
                 camera.touchPinchDist = dist;
             }
         }
@@ -302,12 +299,23 @@ function setupControls() {
 
     canvas.addEventListener('touchend', () => camera.isDragging = false);
 
-    // Масштаб колесиком
+    // Прямолинейный и плавный зум колесиком мыши в центр экрана
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.08 : 0.92;
-        if (camera.zoom * factor >= 0.4 && camera.zoom * factor <= 2.0) {
-            camera.zoom *= factor;
+        const zoomIntensity = 0.1;
+        const factor = e.deltaY < 0 ? (1 + zoomIntensity) : (1 - zoomIntensity);
+        
+        const newZoom = camera.zoom * factor;
+        if (newZoom >= camera.minZoom && newZoom <= camera.maxZoom) {
+            // Зум относительно центра экрана (прямолинейно без смещений вверх)
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            camera.x = cx - (cx - camera.x) * factor;
+            camera.y = cy - (cy - camera.y) * factor;
+            camera.zoom = newZoom;
+            
+            clampCamera();
         }
     }, { passive: false });
-                             }
+    }
