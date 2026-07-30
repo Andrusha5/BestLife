@@ -1,5 +1,5 @@
 // ==========================================
-// BESTLIFE - ENGINE WITH HOME & GENDER SELECT
+// BESTLIFE - ENGINE WITH HOME POINTER & CLEAN ROOM
 // ==========================================
 
 const GRID_SIZE = 16;
@@ -20,11 +20,11 @@ const camera = {
     touchPinchDist: 0
 };
 
-// Координаты оранжевого дома игрока (r: 6, c: 2)
-const PLAYER_HOME_TILE = { r: 6, c: 2 };
-let triangleAngle = 0; // Угол вращения треугольника
+// Координаты оранжевого дома игрока (r: 7, c: 3)
+const PLAYER_HOME_TILE = { r: 7, c: 3 };
+let animTimer = 0; // Для движения вверх-вниз
 
-// Текстура карты города city_map.png
+// Текстура карты city_map.png
 const customMapImg = new Image();
 let hasCustomImage = false;
 customMapImg.src = 'city_map.png';
@@ -36,7 +36,7 @@ customMapImg.onload = () => {
     }
 };
 
-// Генерация резервной карты
+// Построение карты по умолчанию
 function generateMapData() {
     for (let r = 0; r < GRID_SIZE; r++) {
         MAP_DATA[r] = [];
@@ -81,15 +81,13 @@ setTimeout(() => {
 document.getElementById('btn-play').addEventListener('click', () => {
     const savedGender = localStorage.getItem('bestlife_gender');
     if (!savedGender) {
-        // Показываем выбор пола при первом входе
         genderModal.classList.remove('hidden');
     } else {
-        // Сразу запускаем игру
         launchGame();
     }
 });
 
-// Выбор пола
+// Выбор пола (один раз)
 document.getElementById('gender-boy').addEventListener('click', () => selectGender('boy'));
 document.getElementById('gender-girl').addEventListener('click', () => selectGender('girl'));
 
@@ -106,7 +104,7 @@ document.getElementById('btn-menu-back').addEventListener('click', () => {
     mainMenu.classList.remove('hidden');
 });
 
-// Кнопка стрелочка "Назад" из квартиры в город
+// Возврат из квартиры в город
 document.getElementById('btn-exit-apartment').addEventListener('click', () => {
     apartmentScreen.classList.add('hidden');
 });
@@ -180,20 +178,20 @@ window.addEventListener('resize', () => {
 
 function renderLoop() {
     if (!gameScreen.classList.contains('hidden')) {
-        triangleAngle += 0.03; // Медленное вращение
+        animTimer += 0.05; // Движение стрелки
         render();
         requestAnimationFrame(renderLoop);
     }
 }
 
-// Расчет экранных координат оранжевого дома
+// Вычисление точных координат ОРАНЖЕВОГО ДОМА с вашей картинки
 function getPlayerHomeScreenPos() {
     if (hasCustomImage) {
         const map = getMapDimensions();
-        // Точная точка оранжевого дома на изображении city_map.png
+        // Точная привязка к оранжевому дому (по черной стрелке со скриншота)
         return {
-            x: camera.x - map.w * 0.02,
-            y: camera.y + map.h * 0.08
+            x: camera.x - map.w * 0.145,
+            y: camera.y - map.h * 0.015
         };
     } else {
         const w = TILE_WIDTH * camera.zoom;
@@ -211,7 +209,7 @@ function getPlayerHomeScreenPos() {
 }
 
 // ------------------------------------------
-// РЕНДЕР КАРТЫ И УКАЗАТЕЛЯ
+// ОТРИСОВКА КАРТЫ И КРУПНОГО ТРЕУГОЛЬНИКА
 // ------------------------------------------
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -240,35 +238,40 @@ function render() {
         }
     }
 
-    // РИСУЕМ ВРАЩАЮЩИЙСЯ ТРЕУГОЛЬНИК НАД ДОМОМИГРОКА
-    drawRotatingHomeIndicator();
+    // РИСУЕМ КРУПНЫЙ ТРЕУГОЛЬНИК-УКАЗАТЕЛЬ (БЕЗ ВРАЩЕНИЯ, ТОЛЬКО ВВЕРХ-ВНИЗ)
+    drawHomePointer();
 }
 
-function drawRotatingHomeIndicator() {
+function drawHomePointer() {
     const homePos = getPlayerHomeScreenPos();
-    const bobbing = Math.sin(triangleAngle * 2) * 6; // Плавное покачивание вверх-вниз
+    // Плавное поднятие и опускание
+    const offsetY = Math.sin(animTimer) * 10;
+    
     const indX = homePos.x;
-    const indY = homePos.y - 45 * camera.zoom + bobbing;
+    const indY = homePos.y - 35 * camera.zoom + offsetY;
 
     ctx.save();
-    ctx.translate(indX, indY);
-    ctx.rotate(triangleAngle);
 
-    // Рисуем светящийся голубой треугольник
-    const size = 14 * camera.zoom;
+    // Крупный и заметный размер треугольника
+    const width = Math.max(22, 28 * camera.zoom);
+    const height = Math.max(26, 32 * camera.zoom);
+
     ctx.beginPath();
-    ctx.moveTo(0, -size * 1.2);
-    ctx.lineTo(size, size);
-    ctx.lineTo(-size, size);
+    // Рисуем стрелку, указывающую вершиной вниз
+    ctx.moveTo(indX, indY + height / 2); // Нижний острый угол
+    ctx.lineTo(indX - width / 2, indY - height / 2); // Левый верхний угол
+    ctx.lineTo(indX + width / 2, indY - height / 2); // Правый верхний угол
     ctx.closePath();
 
-    ctx.fillStyle = '#38bdf8';
-    ctx.shadowColor = '#0284c7';
-    ctx.shadowBlur = 15;
+    // Яркое неоновое свечение
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 18;
     ctx.fill();
 
+    // Белая четкая обводка
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2 * camera.zoom;
+    ctx.lineWidth = Math.max(2.5, 3 * camera.zoom);
     ctx.stroke();
 
     ctx.restore();
@@ -332,7 +335,7 @@ function adjustColor(col, amt) {
 }
 
 // ------------------------------------------
-// КЛИК ПО ДОМУ И УПРАВЛЕНИЕ КАРТОЙ
+// КЛИК ПО ДОМУ И УПРАВЛЕНИЕ
 // ------------------------------------------
 function setupControls() {
     let clickStartX = 0;
@@ -358,13 +361,11 @@ function setupControls() {
 
     window.addEventListener('mouseup', (e) => {
         camera.isDragging = false;
-        // Если это был клик (а не перетаскивание карты)
         if (Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY) < 10) {
             checkHomeClick(e.clientX, e.clientY);
         }
     });
 
-    // Тач на мобильных устройствах
     canvas.addEventListener('touchstart', (e) => {
         if (e.touches.length === 1) {
             camera.isDragging = true;
@@ -420,13 +421,12 @@ function setupControls() {
     }, { passive: false });
 }
 
-// Проверка клика по оранжевому дому / треугольнику
+// Клик по оранжевому дому
 function checkHomeClick(clickX, clickY) {
     const homePos = getPlayerHomeScreenPos();
     const clickDist = Math.hypot(clickX - homePos.x, clickY - homePos.y);
 
-    // Радиус клика с учетом масштаба
-    if (clickDist < 60 * camera.zoom || clickDist < 45) {
+    if (clickDist < 70 * camera.zoom || clickDist < 50) {
         apartmentScreen.classList.remove('hidden');
     }
 }
@@ -444,4 +444,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-        }
+            }
