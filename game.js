@@ -1,115 +1,101 @@
 // ==========================================
-// BESTLIFE - 2D LIFE SIMULATOR ENGINE
+// BESTLIFE - ENGINE & GRAPHICS
 // ==========================================
 
-// Состояние игры
-const state = {
-    money: 1000,
-    energy: 100,
-    food: 80,
-    rotation: 0 // Угол поворота карты: 0, 1 (90°), 2 (180°), 3 (270°)
-};
+// Конфигурация большой карты
+const GRID_SIZE = 28;
+const TILE_WIDTH = 90;
+const TILE_HEIGHT = 45;
 
-// Конфигурация карты
-const GRID_SIZE = 16;
-const TILE_WIDTH = 100;
-const TILE_HEIGHT = 50;
+const MAP_DATA = [];
 
-// Камера
+// Камера и управление
 const camera = {
     x: 0,
     y: 0,
-    zoom: 1,
+    zoom: 0.8,
     isDragging: false,
-    startX: 0,
-    startY: 0
+    lastX: 0,
+    lastY: 0,
+    touchPinchDist: 0
 };
 
-// Типы зданий и объектов
-const MAP_DATA = [];
-
-// Инициализация карты (размещение дорог, домов, небоскребов и реки)
-function generateMap() {
+// Генерация разветвленного города
+function generateCity() {
     for (let r = 0; r < GRID_SIZE; r++) {
         MAP_DATA[r] = [];
         for (let c = 0; c < GRID_SIZE; c++) {
-            // Река через карту
-            if (c === 7 || c === 8) {
-                MAP_DATA[r][c] = { type: 'water', name: 'Река' };
-            } 
-            // Дороги
-            else if (r === 4 || r === 11 || c === 3 || c === 12) {
-                MAP_DATA[r][c] = { type: 'road', name: 'Дорога' };
-            } 
-            // Дома и здания
-            else if (r === 1 && c === 1) {
-                MAP_DATA[r][c] = { type: 'home', name: 'Мой Дом', desc: 'Здесь можно отдохнуть и восстановить энергию.', color: '#4ba3e3', height: 40 };
-            } else if (r === 2 && c === 5) {
-                MAP_DATA[r][c] = { type: 'office', name: 'Бизнес-Центр', desc: 'Здесь вы работаете и зарабатываете деньги.', color: '#f39c12', height: 110 };
-            } else if (r === 6 && c === 1) {
-                MAP_DATA[r][c] = { type: 'cafe', name: 'Кафе / Ресторан', desc: 'Здесь можно вкусно поесть и восстановить сытость.', color: '#e74c3c', height: 55 };
-            } else if (r === 9 && c === 14) {
-                MAP_DATA[r][c] = { type: 'factory', name: 'Завод', desc: 'Производственный комплекс для работы.', color: '#9b59b6', height: 80 };
-            } else if (r === 13 && c === 6) {
-                MAP_DATA[r][c] = { type: 'skyscraper', name: 'Небоскреб', desc: 'Элитный жилой комплекс.', color: '#2ecc71', height: 140 };
-            } else {
-                // Трава / Парки
-                MAP_DATA[r][c] = { type: 'grass', name: 'Газон' };
+            // Река
+            if (c === 13 || c === 14) {
+                MAP_DATA[r][c] = { type: 'water' };
+            }
+            // Дороги (сеть улиц)
+            else if (r % 6 === 0 || c % 6 === 0) {
+                MAP_DATA[r][c] = { type: 'road' };
+            }
+            // Здания и парки
+            else {
+                const seed = (r * 17 + c * 31) % 100;
+                if (seed < 15) {
+                    MAP_DATA[r][c] = { type: 'park' };
+                } else if (seed < 35) {
+                    MAP_DATA[r][c] = { type: 'house', height: 40, wallColor: '#e2e8f0', roofColor: '#c0392b' };
+                } else if (seed < 60) {
+                    MAP_DATA[r][c] = { type: 'office', height: 85, wallColor: '#334155', roofColor: '#0ea5e9' };
+                } else if (seed < 85) {
+                    MAP_DATA[r][c] = { type: 'skyscraper', height: 150, wallColor: '#1e293b', roofColor: '#38bdf8' };
+                } else {
+                    MAP_DATA[r][c] = { type: 'factory', height: 60, wallColor: '#78350f', roofColor: '#f59e0b' };
+                }
             }
         }
     }
 }
 
-// Элементы DOM
+// Элементы
 const introScreen = document.getElementById('intro-screen');
 const mainMenu = document.getElementById('main-menu');
 const gameScreen = document.getElementById('game-screen');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 const settingsModal = document.getElementById('settings-modal');
-const buildingModal = document.getElementById('building-modal');
 
-// Запуск Нитро и переход в Меню
+// Нитро -> Меню
 setTimeout(() => {
     introScreen.classList.add('hidden');
     mainMenu.classList.remove('hidden');
 }, 4200);
 
-// События меню
 document.getElementById('btn-play').addEventListener('click', startGame);
 document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
 document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
-document.getElementById('btn-close-building').addEventListener('click', () => buildingModal.classList.add('hidden'));
-
-document.getElementById('btn-rotate').addEventListener('click', () => {
-    state.rotation = (state.rotation + 1) % 4;
-    render();
+document.getElementById('btn-reset-cam').addEventListener('click', centerCamera);
+document.getElementById('btn-menu-back').addEventListener('click', () => {
+    gameScreen.classList.add('hidden');
+    mainMenu.classList.remove('hidden');
 });
-
-document.getElementById('btn-reset-cam').addEventListener('click', resetCamera);
 
 function startGame() {
     mainMenu.classList.add('hidden');
     gameScreen.classList.remove('hidden');
-    
     resizeCanvas();
-    generateMap();
-    resetCamera();
+    generateCity();
+    centerCamera();
     setupControls();
-    
-    requestAnimationFrame(gameLoop);
+    render();
 }
 
-function resetCamera() {
+function centerCamera() {
     camera.x = canvas.width / 2;
-    camera.y = canvas.height / 4;
-    camera.zoom = 1;
+    camera.y = canvas.height / 5;
+    camera.zoom = window.innerWidth < 600 ? 0.65 : 0.9;
+    render();
 }
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    render();
 }
 
 window.addEventListener('resize', () => {
@@ -119,46 +105,44 @@ window.addEventListener('resize', () => {
 });
 
 // ------------------------------------------
-// ИЗОМЕТРИЧЕСКИЙ РЕНДЕР КАРТЫ
+// ИЗОМЕТРИЧЕСКИЙ РЕНДЕР С ТЕКСТУРАМИ
 // ------------------------------------------
-function getRotatedCoords(r, c) {
-    if (state.rotation === 0) return { r, c };
-    if (state.rotation === 1) return { r: c, c: GRID_SIZE - 1 - r };
-    if (state.rotation === 2) return { r: GRID_SIZE - 1 - r, c: GRID_SIZE - 1 - c };
-    return { r: GRID_SIZE - 1 - c, c: r };
-}
-
 function isoToScreen(r, c) {
-    const rot = getRotatedCoords(r, c);
-    const x = (rot.c - rot.r) * (TILE_WIDTH / 2) * camera.zoom + camera.x;
-    const y = (rot.c + rot.r) * (TILE_HEIGHT / 2) * camera.zoom + camera.y;
+    const x = (c - r) * (TILE_WIDTH / 2) * camera.zoom + camera.x;
+    const y = (c + r) * (TILE_HEIGHT / 2) * camera.zoom + camera.y;
     return { x, y };
 }
 
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Отрисовка плиток карты
+    const w = TILE_WIDTH * camera.zoom;
+    const h = TILE_HEIGHT * camera.zoom;
+
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
             const pos = isoToScreen(r, c);
+
+            // Оптимизация (не рисовать то, что за пределами экрана)
+            if (pos.x < -w * 2 || pos.x > canvas.width + w * 2 || pos.y < -h * 4 || pos.y > canvas.height + h * 4) {
+                continue;
+            }
+
             const tile = MAP_DATA[r][c];
 
-            drawIsoTile(pos.x, pos.y, tile);
+            // 1. Отрисовка Земли / Дорог / Реки
+            drawTileBase(pos.x, pos.y, w, h, tile, r, c);
 
-            // Если есть здание — рисуем его объём
+            // 2. Отрисовка Текстурного Здания
             if (tile.height) {
-                drawBuilding(pos.x, pos.y, tile);
+                drawDetailedBuilding(pos.x, pos.y, w, h, tile);
             }
         }
     }
 }
 
-// Отрисовка тайла земли/реки/дороги
-function drawIsoTile(x, y, tile) {
-    const w = TILE_WIDTH * camera.zoom;
-    const h = TILE_HEIGHT * camera.zoom;
-
+// Отрисовка поверхности
+function drawTileBase(x, y, w, h, tile, r, c) {
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + w / 2, y + h / 2);
@@ -166,43 +150,76 @@ function drawIsoTile(x, y, tile) {
     ctx.lineTo(x - w / 2, y + h / 2);
     ctx.closePath();
 
-    if (tile.type === 'grass') ctx.fillStyle = '#55af3a';
-    else if (tile.type === 'water') ctx.fillStyle = '#2980b9';
-    else if (tile.type === 'road') ctx.fillStyle = '#4a5568';
-    else ctx.fillStyle = '#38a169';
+    if (tile.type === 'road') {
+        ctx.fillStyle = '#334155';
+        ctx.fill();
+        ctx.strokeStyle = '#1e293b';
+        ctx.stroke();
 
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctx.stroke();
+        // Разметка дорог и перекрестков
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3 * camera.zoom, 3 * camera.zoom]);
+        ctx.beginPath();
+        ctx.moveTo(x - w / 4, y + h / 4);
+        ctx.lineTo(x + w / 4, y + h * 0.75);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    } else if (tile.type === 'water') {
+        ctx.fillStyle = '#0284c7';
+        ctx.fill();
+        // Блик воды
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - w / 6, y + h / 2);
+        ctx.lineTo(x + w / 6, y + h / 2);
+        ctx.stroke();
+    } else if (tile.type === 'park') {
+        ctx.fillStyle = '#22c55e';
+        ctx.fill();
+        // Деревья в парке
+        ctx.fillStyle = '#15803d';
+        ctx.beginPath();
+        ctx.arc(x, y + h / 2, 6 * camera.zoom, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        ctx.fillStyle = '#475569';
+        ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.stroke();
+    }
 }
 
-// Отрисовка 3D Здания
-function drawBuilding(x, y, tile) {
-    const w = TILE_WIDTH * camera.zoom;
-    const h = TILE_HEIGHT * camera.zoom;
+// Детализированные текстурные дома
+function drawDetailedBuilding(x, y, w, h, tile) {
     const bh = tile.height * camera.zoom;
 
-    // Левая грань
+    // Левая стена
     ctx.beginPath();
     ctx.moveTo(x - w / 2, y + h / 2);
     ctx.lineTo(x, y + h);
     ctx.lineTo(x, y + h - bh);
     ctx.lineTo(x - w / 2, y + h / 2 - bh);
     ctx.closePath();
-    ctx.fillStyle = adjustColor(tile.color, -20);
+    ctx.fillStyle = adjustColor(tile.wallColor, -25);
     ctx.fill();
-    ctx.stroke();
 
-    // Правая грань
+    // Окна на левой стене
+    drawWindows(x - w / 4, y + h * 0.75, bh, w, h, -1);
+
+    // Правая стена
     ctx.beginPath();
     ctx.moveTo(x, y + h);
     ctx.lineTo(x + w / 2, y + h / 2);
     ctx.lineTo(x + w / 2, y + h / 2 - bh);
     ctx.lineTo(x, y + h - bh);
     ctx.closePath();
-    ctx.fillStyle = adjustColor(tile.color, -40);
+    ctx.fillStyle = adjustColor(tile.wallColor, -45);
     ctx.fill();
-    ctx.stroke();
+
+    // Окна на правой стене
+    drawWindows(x + w / 4, y + h * 0.75, bh, w, h, 1);
 
     // Крыша
     ctx.beginPath();
@@ -211,127 +228,109 @@ function drawBuilding(x, y, tile) {
     ctx.lineTo(x, y + h - bh);
     ctx.lineTo(x - w / 2, y + h / 2 - bh);
     ctx.closePath();
-    ctx.fillStyle = tile.color;
+    ctx.fillStyle = tile.roofColor;
     ctx.fill();
-    ctx.stroke();
+
+    // Вертолетная площадка H на небоскребах
+    if (tile.type === 'skyscraper') {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(10, 12 * camera.zoom)}px Montserrat`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('H', x, y + h / 2 - bh);
+    }
 }
 
-// Помощник регулировки цвета граней
+// Рисование светящихся окон
+function drawWindows(centerX, bottomY, bh, w, h, side) {
+    const layers = Math.floor(bh / (14 * camera.zoom));
+    ctx.fillStyle = '#fef08a';
+
+    for (let i = 1; i < layers; i++) {
+        const wy = bottomY - i * (12 * camera.zoom);
+        const wx = centerX;
+        ctx.fillRect(wx - 2 * camera.zoom, wy - 2 * camera.zoom, 4 * camera.zoom, 4 * camera.zoom);
+    }
+}
+
 function adjustColor(col, amt) {
-    let usePound = false;
-    if (col[0] == "#") { col = col.slice(1); usePound = true; }
-    let num = parseInt(col, 16);
+    let num = parseInt(col.replace('#', ''), 16);
     let r = (num >> 16) + amt; if (r > 255) r = 255; else if (r < 0) r = 0;
     let b = ((num >> 8) & 0x00FF) + amt; if (b > 255) b = 255; else if (b < 0) b = 0;
     let g = (num & 0x0000FF) + amt; if (g > 255) g = 255; else if (g < 0) g = 0;
-    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16);
+    return "#" + (g | (b << 8) | (r << 16)).toString(16);
 }
 
 // ------------------------------------------
-// УПРАВЛЕНИЕ: ДВИЖЕНИЕ КАРТЫ И КЛИКИ
+// СЕНСОРНОЕ УПРАВЛЕНИЕ (TOUCH & MOUSE DRAG)
 // ------------------------------------------
 function setupControls() {
+    // Движение мышью
     canvas.addEventListener('mousedown', (e) => {
         camera.isDragging = true;
-        camera.startX = e.clientX - camera.x;
-        camera.startY = e.clientY - camera.y;
+        camera.lastX = e.clientX;
+        camera.lastY = e.clientY;
     });
 
     window.addEventListener('mousemove', (e) => {
         if (camera.isDragging) {
-            camera.x = e.clientX - camera.startX;
-            camera.y = e.clientY - camera.startY;
+            camera.x += e.clientX - camera.lastX;
+            camera.y += e.clientY - camera.lastY;
+            camera.lastX = e.clientX;
+            camera.lastY = e.clientY;
             render();
         }
     });
 
-    window.addEventListener('mouseup', () => {
-        camera.isDragging = false;
-    });
+    window.addEventListener('mouseup', () => camera.isDragging = false);
 
-    // Масштабирование колесиком мыши
-    canvas.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-        if (camera.zoom * zoomFactor >= 0.5 && camera.zoom * zoomFactor <= 2.2) {
-            camera.zoom *= zoomFactor;
-            render();
+    // Движение пальцами на телефоне
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            camera.isDragging = true;
+            camera.lastX = e.touches[0].clientX;
+            camera.lastY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+            camera.isDragging = false;
+            camera.touchPinchDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
         }
-    });
+    }, { passive: true });
 
-    // Клик по зданиям
-    canvas.addEventListener('click', (e) => {
-        // Простая проверка выборки клика по зданиям
-        for (let r = 0; r < GRID_SIZE; r++) {
-            for (let c = 0; c < GRID_SIZE; c++) {
-                const tile = MAP_DATA[r][c];
-                if (tile.height) {
-                    const pos = isoToScreen(r, c);
-                    const dist = Math.hypot(e.clientX - pos.x, e.clientY - (pos.y - tile.height / 2));
-                    if (dist < 35 * camera.zoom) {
-                        openBuildingMenu(tile);
-                        return;
-                    }
-                }
+    canvas.addEventListener('touchmove', (e) => {
+        if (camera.isDragging && e.touches.length === 1) {
+            const dx = e.touches[0].clientX - camera.lastX;
+            const dy = e.touches[0].clientY - camera.lastY;
+            camera.x += dx;
+            camera.y += dy;
+            camera.lastX = e.touches[0].clientX;
+            camera.lastY = e.touches[0].clientY;
+            render();
+        } else if (e.touches.length === 2) {
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const factor = dist / camera.touchPinchDist;
+            if (camera.zoom * factor >= 0.4 && camera.zoom * factor <= 1.8) {
+                camera.zoom *= factor;
+                camera.touchPinchDist = dist;
+                render();
             }
         }
-    });
-}
+    }, { passive: true });
 
-// Открытие модального окна здания
-function openBuildingMenu(tile) {
-    document.getElementById('b-title').innerText = tile.name;
-    document.getElementById('b-desc').innerText = tile.desc;
+    canvas.addEventListener('touchend', () => camera.isDragging = false);
 
-    const actionsBox = document.getElementById('b-actions');
-    actionsBox.innerHTML = '';
-
-    if (tile.type === 'home') {
-        actionsBox.innerHTML = `<button class="act-btn" onclick="doAction('rest')">💤 Отдохнуть (+30 Энергии)</button>`;
-    } else if (tile.type === 'office' || tile.type === 'factory') {
-        actionsBox.innerHTML = `<button class="act-btn" onclick="doAction('work')">💼 Работать (+250$, -20 Энергии)</button>`;
-    } else if (tile.type === 'cafe') {
-        actionsBox.innerHTML = `<button class="act-btn" onclick="doAction('eat')">🍕 Покушать (-50$, +40 Сытости)</button>`;
-    } else {
-        actionsBox.innerHTML = `<button class="act-btn" onclick="doAction('visit')">Осмотреть здание</button>`;
-    }
-
-    buildingModal.classList.remove('hidden');
-}
-
-// Действия персонажа
-window.doAction = function(act) {
-    if (act === 'work') {
-        if (state.energy >= 20) {
-            state.money += 250;
-            state.energy -= 20;
-            alert('Вы поработали и заработали 250$!');
-        } else {
-            alert('Недостаточно энергии! Сходите домой отдохнуть.');
+    // Масштаб колесиком
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.08 : 0.92;
+        if (camera.zoom * factor >= 0.4 && camera.zoom * factor <= 1.8) {
+            camera.zoom *= factor;
+            render();
         }
-    } else if (act === 'rest') {
-        state.energy = Math.min(100, state.energy + 30);
-        alert('Вы хорошо отдохнули!');
-    } else if (act === 'eat') {
-        if (state.money >= 50) {
-            state.money -= 50;
-            state.food = Math.min(100, state.food + 40);
-            alert('Вы вкусно покушали!');
-        } else {
-            alert('Не хватает денег на еду!');
-        }
-    }
-
-    updateHUD();
-    buildingModal.classList.add('hidden');
-};
-
-function updateHUD() {
-    document.getElementById('val-money').innerText = state.money.toLocaleString();
-    document.getElementById('val-energy').innerText = state.energy;
-    document.getElementById('val-food').innerText = state.food;
-}
-
-function gameLoop() {
-    render();
-                }
+    }, { passive: false });
+                   }
