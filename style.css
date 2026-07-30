@@ -15,7 +15,7 @@ html, body {
     overflow: hidden;
     background-color: #0b0f19;
     color: #fff;
-    touch-action: none; /* Предотвращает системные свайпы браузера */
+    touch-action: none;
 }
 
 .hidden {
@@ -181,8 +181,6 @@ canvas {
     position: absolute;
     top: 15px;
     right: 15px;
-    display: flex;
-    gap: 10px;
     z-index: 100;
 }
 
@@ -192,9 +190,9 @@ canvas {
     -webkit-backdrop-filter: blur(8px);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 10px 14px;
+    padding: 10px 16px;
     border-radius: 12px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     font-weight: 700;
     cursor: pointer;
 }
