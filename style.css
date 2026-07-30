@@ -12,7 +12,7 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: #0d131d;
+    background-color: #0b0f19;
     color: #fff;
     touch-action: none;
 }
@@ -174,7 +174,7 @@ canvas {
     display: block;
     width: 100%;
     height: 100%;
-    background-color: #1a2332;
+    background-color: #0b0f19;
 }
 
 #game-ui {
@@ -233,4 +233,4 @@ canvas {
     color: #94a3b8;
     font-size: 0.95rem;
     line-height: 1.5;
-        }
+                                          }
