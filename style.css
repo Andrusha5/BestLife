@@ -11,9 +11,8 @@
 html, body {
     width: 100%;
     height: 100%;
-    height: 100dvh;
     overflow: hidden;
-    background-color: #0b0f19;
+    background-color: #0d131d;
     color: #fff;
     touch-action: none;
 }
@@ -27,8 +26,8 @@ html, body {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100dvh;
+    width: 100%;
+    height: 100%;
     background-color: #000000;
     display: flex;
     flex-direction: column;
@@ -82,8 +81,8 @@ html, body {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100dvh;
+    width: 100%;
+    height: 100%;
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     display: flex;
     justify-content: center;
@@ -163,9 +162,11 @@ html, body {
 
 /* --- 3. ИГРОВОЙ ЭКРАН --- */
 #game-screen {
-    position: relative;
-    width: 100vw;
-    height: 100dvh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
 }
 
@@ -173,8 +174,7 @@ canvas {
     display: block;
     width: 100%;
     height: 100%;
-    background-color: #1e293b;
-    touch-action: none;
+    background-color: #1a2332;
 }
 
 #game-ui {
@@ -206,8 +206,8 @@ canvas {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100dvh;
+    width: 100%;
+    height: 100%;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
