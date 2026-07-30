@@ -1,61 +1,63 @@
 // ==========================================
-// BESTLIFE - ENGINE (ЗУМ, ГРАНИЦЫ И КАРТА)
+// BESTLIFE - PERFECT BOUNDS & ZOOM ENGINE
 // ==========================================
 
-const GRID_SIZE = 18;
-const TILE_WIDTH = 80;
-const TILE_HEIGHT = 40;
-
+const GRID_SIZE = 16;
+const TILE_WIDTH = 100;
+const TILE_HEIGHT = 50;
 const MAP_DATA = [];
 
-// Камера
+// Параметры камеры
 const camera = {
     x: 0,
     y: 0,
-    zoom: 0.45, // Идеальный начальный зум (карта целиком на экране)
-    minZoom: 0.35,
-    maxZoom: 1.6,
+    zoom: 1,
+    minZoom: 0.3,
+    maxZoom: 2.5,
     isDragging: false,
     lastX: 0,
     lastY: 0,
     touchPinchDist: 0
 };
 
-// Проверка пользовательской текстуры `city_map.png`
+// Поддержка текстурного изображения карты `city_map.png`
 const customMapImg = new Image();
 let hasCustomImage = false;
 customMapImg.src = 'city_map.png';
 customMapImg.onload = () => {
     hasCustomImage = true;
-    render();
+    if (!gameScreen.classList.contains('hidden')) {
+        fitAndCenterMap();
+        render();
+    }
 };
 
-// Генерация карты по умолчанию
+// Построение карты по умолчанию (резервная процедурная изометрия)
 function generateMapData() {
     for (let r = 0; r < GRID_SIZE; r++) {
         MAP_DATA[r] = [];
         for (let c = 0; c < GRID_SIZE; c++) {
-            if (c === 8 || c === 9) {
+            if (c === 7 || c === 8) {
                 MAP_DATA[r][c] = { type: 'water' };
-            } else if (r === 4 || r === 12 || c === 3 || c === 14) {
+            } else if (r === 4 || r === 11 || c === 3 || c === 12) {
                 MAP_DATA[r][c] = { type: 'road' };
             } else {
-                const seed = (r * 11 + c * 23) % 100;
+                const seed = (r * 13 + c * 29) % 100;
                 if (seed < 20) {
                     MAP_DATA[r][c] = { type: 'park' };
-                } else if (seed < 50) {
-                    MAP_DATA[r][c] = { type: 'house', height: 35, wallColor: '#e2e8f0', roofColor: '#ef4444' };
-                } else if (seed < 80) {
-                    MAP_DATA[r][c] = { type: 'office', height: 75, wallColor: '#334155', roofColor: '#3b82f6' };
+                } else if (seed < 55) {
+                    MAP_DATA[r][c] = { type: 'house', height: 40, wallColor: '#e2e8f0', roofColor: '#ef4444' };
+                } else if (seed < 85) {
+                    MAP_DATA[r][c] = { type: 'office', height: 80, wallColor: '#334155', roofColor: '#3b82f6' };
                 } else {
-                    MAP_DATA[r][c] = { type: 'skyscraper', height: 120, wallColor: '#1e293b', roofColor: '#0284c7' };
+                    MAP_DATA[r][c] = { type: 'skyscraper', height: 130, wallColor: '#1e293b', roofColor: '#0284c7' };
                 }
             }
         }
     }
 }
 
-// Элементы UI
+// UI элементы
 const introScreen = document.getElementById('intro-screen');
 const mainMenu = document.getElementById('main-menu');
 const gameScreen = document.getElementById('game-screen');
@@ -63,7 +65,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const settingsModal = document.getElementById('settings-modal');
 
-// Показ меню после Интро
+// Нитро -> Меню
 setTimeout(() => {
     introScreen.classList.add('hidden');
     mainMenu.classList.remove('hidden');
@@ -83,34 +85,70 @@ function startGame() {
     
     generateMapData();
     resizeCanvas();
-    centerMap();
+    fitAndCenterMap();
     setupControls();
     
     requestAnimationFrame(renderLoop);
 }
 
-function centerMap() {
-    camera.zoom = window.innerWidth < 600 ? 0.45 : 0.65;
-    // Центрируем камеру строго по центру карты
+// Получение общих габаритов карты на холсте
+function getMapDimensions() {
+    if (hasCustomImage) {
+        return {
+            w: customMapImg.width * camera.zoom,
+            h: customMapImg.height * camera.zoom
+        };
+    } else {
+        return {
+            w: GRID_SIZE * TILE_WIDTH * camera.zoom,
+            h: GRID_SIZE * TILE_HEIGHT * camera.zoom
+        };
+    }
+}
+
+// Автоматический масштаб при старте (вход под размер экрана) и центрирование
+function fitAndCenterMap() {
+    const dim = hasCustomImage 
+        ? { w: customMapImg.width, h: customMapImg.height }
+        : { w: GRID_SIZE * TILE_WIDTH, h: GRID_SIZE * TILE_HEIGHT };
+
+    // Расчет зума, чтобы карта аккуратно помещалась в экран с запасом
+    const fitZoomX = (canvas.width * 0.95) / dim.w;
+    const fitZoomY = (canvas.height * 0.95) / dim.h;
+    
+    // Минимальный зум так же блокирует сильный отдал
+    camera.minZoom = Math.min(fitZoomX, fitZoomY, 0.4);
+    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 1.0);
+    
     camera.x = canvas.width / 2;
-    camera.y = canvas.height / 2 - (GRID_SIZE * TILE_HEIGHT * camera.zoom) / 2;
+    camera.y = canvas.height / 2;
+    
     clampCamera();
 }
 
-// Ограничение камеры, чтобы нельзя было уйти за пределы карты
+// ЖЕСТКИЕ ГРАНИЦЫ (Нельзя утянуть карту в черное пространство)
 function clampCamera() {
-    const mapWidth = GRID_SIZE * TILE_WIDTH * camera.zoom;
-    const mapHeight = GRID_SIZE * TILE_HEIGHT * camera.zoom;
+    const map = getMapDimensions();
+    const halfW = map.w / 2;
+    const halfH = map.h / 2;
 
-    // Оставляем небольшой кусочек карты видимым на границах
-    const marginX = canvas.width * 0.75;
-    const marginY = canvas.height * 0.75;
+    // Если ширина карты больше экрана - сдерживаем лево/право
+    if (map.w > canvas.width) {
+        const minX = canvas.width - halfW;
+        const maxX = halfW;
+        camera.x = Math.max(minX, Math.min(maxX, camera.x));
+    } else {
+        camera.x = canvas.width / 2;
+    }
 
-    if (camera.x > canvas.width / 2 + mapWidth / 2 + marginX) camera.x = canvas.width / 2 + mapWidth / 2 + marginX;
-    if (camera.x < canvas.width / 2 - mapWidth / 2 - marginX) camera.x = canvas.width / 2 - mapWidth / 2 - marginX;
-    
-    if (camera.y > canvas.height / 2 + mapHeight / 2 + marginY) camera.y = canvas.height / 2 + mapHeight / 2 + marginY;
-    if (camera.y < canvas.height / 2 - mapHeight / 2 - marginY) camera.y = canvas.height / 2 - mapHeight / 2 - marginY;
+    // Если высота карты больше экрана - сдерживаем верх/низ
+    if (map.h > canvas.height) {
+        const minY = canvas.height - halfH;
+        const maxY = halfH;
+        camera.y = Math.max(minY, Math.min(maxY, camera.y));
+    } else {
+        camera.y = canvas.height / 2;
+    }
 }
 
 function resizeCanvas() {
@@ -121,6 +159,7 @@ function resizeCanvas() {
 window.addEventListener('resize', () => {
     if (!gameScreen.classList.contains('hidden')) {
         resizeCanvas();
+        clampCamera();
     }
 });
 
@@ -132,36 +171,42 @@ function renderLoop() {
 }
 
 // ------------------------------------------
-// РЕНДЕР КАРТЫ
+// ОТРИСОВКА
 // ------------------------------------------
-function isoToScreen(r, c) {
-    const x = (c - r) * (TILE_WIDTH / 2) * camera.zoom + camera.x;
-    const y = (c + r) * (TILE_HEIGHT / 2) * camera.zoom + camera.y;
-    return { x, y };
-}
-
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Рисование изображения карты `city_map.png`
     if (hasCustomImage) {
-        const w = customMapImg.width * camera.zoom;
-        const h = customMapImg.height * camera.zoom;
-        ctx.drawImage(customMapImg, camera.x - w / 2, camera.y - h / 2, w, h);
+        const map = getMapDimensions();
+        ctx.drawImage(
+            customMapImg, 
+            camera.x - map.w / 2, 
+            camera.y - map.h / 2, 
+            map.w, 
+            map.h
+        );
         return;
     }
 
+    // Резервный изометрический мир
     const w = TILE_WIDTH * camera.zoom;
     const h = TILE_HEIGHT * camera.zoom;
+    const map = getMapDimensions();
+
+    const startX = camera.x;
+    const startY = camera.y - map.h / 2;
 
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
-            const pos = isoToScreen(r, c);
+            const posX = (c - r) * (w / 2) + startX;
+            const posY = (c + r) * (h / 2) + startY;
+
             const tile = MAP_DATA[r][c];
 
-            drawTileBase(pos.x, pos.y, w, h, tile);
-
+            drawTileBase(posX, posY, w, h, tile);
             if (tile.height) {
-                drawBuilding(pos.x, pos.y, w, h, tile);
+                drawBuilding(posX, posY, w, h, tile);
             }
         }
     }
@@ -177,29 +222,22 @@ function drawTileBase(x, y, w, h, tile) {
 
     if (tile.type === 'road') {
         ctx.fillStyle = '#334155';
-        ctx.fill();
-        ctx.strokeStyle = '#1e293b';
-        ctx.stroke();
     } else if (tile.type === 'water') {
         ctx.fillStyle = '#0284c7';
-        ctx.fill();
-        ctx.strokeStyle = '#38bdf8';
-        ctx.stroke();
     } else if (tile.type === 'park') {
         ctx.fillStyle = '#10b981';
-        ctx.fill();
     } else {
         ctx.fillStyle = '#22c55e';
-        ctx.fill();
-        ctx.strokeStyle = '#16a34a';
-        ctx.stroke();
     }
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.stroke();
 }
 
 function drawBuilding(x, y, w, h, tile) {
     const bh = tile.height * camera.zoom;
 
-    // Левая стена
+    // Левая грань
     ctx.beginPath();
     ctx.moveTo(x - w / 2, y + h / 2);
     ctx.lineTo(x, y + h);
@@ -209,7 +247,7 @@ function drawBuilding(x, y, w, h, tile) {
     ctx.fillStyle = adjustColor(tile.wallColor, -20);
     ctx.fill();
 
-    // Правая стена
+    // Правая грань
     ctx.beginPath();
     ctx.moveTo(x, y + h);
     ctx.lineTo(x + w / 2, y + h / 2);
@@ -239,9 +277,27 @@ function adjustColor(col, amt) {
 }
 
 // ------------------------------------------
-// ПЛАВНЫЙ ЗУМ К ЦЕНТРУ И УПРАВЛЕНИЕ КАРТОЙ
+// ПРЯМОЛИНЕЙНЫЙ И ПЛАВНЫЙ ЗУМ + ТАЧ
 // ------------------------------------------
+function zoomToPoint(focalX, focalY, factor) {
+    const oldZoom = camera.zoom;
+    let newZoom = camera.zoom * factor;
+
+    newZoom = Math.max(camera.minZoom, Math.min(camera.maxZoom, newZoom));
+    if (newZoom === oldZoom) return;
+
+    const scale = newZoom / oldZoom;
+    
+    // Линейный зум строго от фокальной точки
+    camera.x = focalX - (focalX - camera.x) * scale;
+    camera.y = focalY - (focalY - camera.y) * scale;
+    camera.zoom = newZoom;
+
+    clampCamera();
+}
+
 function setupControls() {
+    // Мышь (перетаскивание)
     canvas.addEventListener('mousedown', (e) => {
         camera.isDragging = true;
         camera.lastX = e.clientX;
@@ -260,7 +316,7 @@ function setupControls() {
 
     window.addEventListener('mouseup', () => camera.isDragging = false);
 
-    // Тач-управление (перемещение и плавный пинч-зум)
+    // Палец на телефоне
     canvas.addEventListener('touchstart', (e) => {
         if (e.touches.length === 1) {
             camera.isDragging = true;
@@ -287,35 +343,22 @@ function setupControls() {
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
-            const factor = dist / camera.touchPinchDist;
-            const newZoom = camera.zoom * factor;
-            if (newZoom >= camera.minZoom && newZoom <= camera.maxZoom) {
-                camera.zoom = newZoom;
-                clampCamera();
-                camera.touchPinchDist = dist;
+            if (camera.touchPinchDist > 0) {
+                const factor = dist / camera.touchPinchDist;
+                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                zoomToPoint(midX, midY, factor);
             }
+            camera.touchPinchDist = dist;
         }
     }, { passive: true });
 
     canvas.addEventListener('touchend', () => camera.isDragging = false);
 
-    // Прямолинейный и плавный зум колесиком мыши в центр экрана
+    // Плавный прямолинейный зум колесиком мыши
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const zoomIntensity = 0.1;
-        const factor = e.deltaY < 0 ? (1 + zoomIntensity) : (1 - zoomIntensity);
-        
-        const newZoom = camera.zoom * factor;
-        if (newZoom >= camera.minZoom && newZoom <= camera.maxZoom) {
-            // Зум относительно центра экрана (прямолинейно без смещений вверх)
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            
-            camera.x = cx - (cx - camera.x) * factor;
-            camera.y = cy - (cy - camera.y) * factor;
-            camera.zoom = newZoom;
-            
-            clampCamera();
-        }
+        const factor = e.deltaY < 0 ? 1.06 : 0.94;
+        zoomToPoint(e.clientX, e.clientY, factor);
     }, { passive: false });
-    }
+}
