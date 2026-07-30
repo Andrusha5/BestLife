@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>BestLife - 2D Life Simulator</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
@@ -11,8 +11,10 @@
 
     <!-- 1. НИТРО / ИНТРО ЭКРАН -->
     <div id="intro-screen">
-        <div class="intro-content">
+        <div class="intro-center">
             <h1 class="intro-title">BestLife</h1>
+        </div>
+        <div class="intro-footer">
             <p class="intro-subtitle">by Best</p>
         </div>
     </div>
@@ -38,41 +40,22 @@
     <div id="settings-modal" class="modal hidden">
         <div class="modal-card">
             <h2>⚙ Настройки</h2>
-            <p class="settings-placeholder">Раздел настроек находится в разработке. Скоро здесь появится управление звуком, графикой и управлением!</p>
+            <p class="settings-placeholder">Раздел настроек находится в разработке.</p>
             <button id="btn-close-settings" class="btn btn-secondary">Закрыть</button>
         </div>
     </div>
 
     <!-- 3. ИГРОВОЙ ЭКРАН С КАРТОЙ -->
     <div id="game-screen" class="hidden">
-        <!-- Холст игры -->
         <canvas id="gameCanvas"></canvas>
-
-        <!-- Игровой интерфейс (HUD) -->
-        <div id="hud">
-            <div class="hud-stat">💰 Деньги: <span id="val-money">1 000</span> $</div>
-            <div class="hud-stat">⚡ Энергия: <span id="val-energy">100</span>%</div>
-            <div class="hud-stat">🍕 Сытость: <span id="val-food">80</span>%</div>
-            
-            <div class="hud-controls">
-                <button id="btn-rotate" class="btn-hud" title="Повернуть карту на 90°">🔄 Повернуть</button>
-                <button id="btn-reset-cam" class="btn-hud" title="Сбросить камеру">🎯 По центру</button>
-            </div>
-        </div>
-
-        <!-- Окно взаимодействия со зданием -->
-        <div id="building-modal" class="modal hidden">
-            <div class="modal-card">
-                <h3 id="b-title">Название здания</h3>
-                <p id="b-desc">Описание</p>
-                <div id="b-actions" class="action-buttons">
-                    <!-- Кнопки действий генерируются через JS -->
-                </div>
-                <button id="btn-close-building" class="btn btn-secondary" style="margin-top:15px;">Закрыть</button>
-            </div>
+        
+        <!-- Кнопки управления поверх карты -->
+        <div id="game-ui">
+            <button id="btn-reset-cam" class="hud-btn">🎯 По центру</button>
+            <button id="btn-menu-back" class="hud-btn">🚪 В меню</button>
         </div>
     </div>
 
     <script src="game.js"></script>
 </body>
-  </html>
+</html>
