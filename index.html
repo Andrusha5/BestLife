@@ -42,11 +42,11 @@
             <h2 class="gender-title">Выберите персонажа</h2>
             <div class="gender-options">
                 <div class="gender-card" id="gender-boy">
-                    <div class="avatar-placeholder boy-avatar">👦</div>
+                    <div class="avatar-placeholder">👦</div>
                     <span class="gender-label">Мальчик</span>
                 </div>
                 <div class="gender-card" id="gender-girl">
-                    <div class="avatar-placeholder girl-avatar">👧</div>
+                    <div class="avatar-placeholder">👧</div>
                     <span class="gender-label">Девочка</span>
                 </div>
             </div>
@@ -71,20 +71,16 @@
         </div>
     </div>
 
-    <!-- 4. ЭКРАН КВАРТИРЫ ИГРОКА (house.png) -->
+    <!-- 4. ЭКРАН КВАРТИРЫ ИГРОКА (house.png без рамок) -->
     <div id="apartment-screen" class="hidden">
         <button id="btn-exit-apartment" class="back-circle-btn" title="Вернуться в город">←</button>
+        <h3 class="apartment-top-title">Моя Квартира</h3>
         
-        <div class="apartment-container">
-            <div class="apartment-card">
-                <h3 class="apartment-title">Моя Квартира</h3>
-                <div class="apartment-frame">
-                    <img id="apartment-img" src="house.png" alt="Квартира" onerror="this.src='https://via.placeholder.com/600x600/1e293b/38bdf8?text=Загрузите+house.png+в+GitHub'">
-                </div>
-            </div>
+        <div class="apartment-view">
+            <img id="apartment-img" src="house.png" alt="Квартира" onerror="this.src='https://via.placeholder.com/600x600/1e293b/38bdf8?text=Загрузите+house.png+в+GitHub'">
         </div>
     </div>
 
     <script src="game.js"></script>
 </body>
-</html>
+            </html>
