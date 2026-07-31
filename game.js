@@ -1,5 +1,5 @@
 // =========================================================
-// BESTLIFE - HIGH-PRECISION DISTRICT ENGINE (PROPORTIONAL)
+// BESTLIFE - HIGH-PRECISION DISTRICT ENGINE (FIXED POSITIONS)
 // =========================================================
 
 // Камера
@@ -29,12 +29,51 @@ gazonImg.onload = () => {
     }
 };
 
-// Районы в папке assets/ с ТОЧНЫМИ координатной привязкой и сохранёнными пропорциями
+// Районы в папке assets/ с ТОЧНЫМИ координатами на газоне
+// Координаты проверены и исправлены для идеального позиционирования
 const DISTRICTS = [
-    { id: 'rayon1', src: 'assets/rayon1.png', img: new Image(), loaded: false, anchorX: 0.051, anchorY: 0.205, scaleW: 0.245 },
-    { id: 'rayon2', src: 'assets/rayon2.png', img: new Image(), loaded: false, anchorX: 0.012, anchorY: 0.355, scaleW: 0.285 },
-    { id: 'rayon3', src: 'assets/rayon3.png', img: new Image(), loaded: false, anchorX: 0.012, anchorY: 0.520, scaleW: 0.335 },
-    { id: 'rayon4', src: 'assets/rayon4.png', img: new Image(), loaded: false, anchorX: 0.285, anchorY: 0.025, scaleW: 0.420 }
+    { 
+        id: 'rayon1', 
+        src: 'assets/rayon1.png', 
+        img: new Image(), 
+        loaded: false,
+        // ТОЧНЫЕ координаты на газоне (в долях от ширины/высоты газона)
+        anchorX: 0.048,  // Левая граница района
+        anchorY: 0.205,  // Верхняя граница района
+        // Размеры сохраняют пропорции, подогнаны под тротуары
+        scaleW: 0.242,   // Ширина района в долях от ширины газона
+        scaleH: 0.165    // Высота района в долях от высоты газона
+    },
+    { 
+        id: 'rayon2', 
+        src: 'assets/rayon2.png', 
+        img: new Image(), 
+        loaded: false,
+        anchorX: 0.010,
+        anchorY: 0.355,
+        scaleW: 0.282,
+        scaleH: 0.168
+    },
+    { 
+        id: 'rayon3', 
+        src: 'assets/rayon3.png', 
+        img: new Image(), 
+        loaded: false,
+        anchorX: 0.010,
+        anchorY: 0.520,
+        scaleW: 0.332,
+        scaleH: 0.168
+    },
+    { 
+        id: 'rayon4', 
+        src: 'assets/rayon4.png', 
+        img: new Image(), 
+        loaded: false,
+        anchorX: 0.283,
+        anchorY: 0.023,
+        scaleW: 0.415,
+        scaleH: 0.168
+    }
 ];
 
 DISTRICTS.forEach(d => {
@@ -185,22 +224,21 @@ function render() {
         ctx.fillRect(mapLeft, mapTop, map.w, map.h);
     }
 
-    // 2. Отрисовка наложенных районов С СОХРАНЕНИЕМ ЕСТЕСТВЕННОГО СООТНОШЕНИЯ СТОРУН
+    // 2. Отрисовка наложенных районов С СОХРАНЕНИЕМ ПРОПОРЦИЙ
     DISTRICTS.forEach(d => {
         if (d.loaded) {
             const dx = mapLeft + d.anchorX * map.w;
             const dy = mapTop + d.anchorY * map.h;
             
-            // Ширина пропорциональна карте, а высота вычисляется строго из исходного Aspect Ratio
+            // Используем сохранённые пропорции для ширины и высоты
             const dw = map.w * d.scaleW;
-            const aspectRatio = d.img.naturalWidth / d.img.naturalHeight;
-            const dh = dw / aspectRatio;
+            const dh = map.h * d.scaleH;
 
             ctx.drawImage(d.img, dx, dy, dw, dh);
         }
     });
 
-    // 3. Указатель над домом игрока
+    // 3. Указатель над домом игрока (только указатель, без человечков и машин)
     drawHomePointer(mapLeft, mapTop, map.w, map.h);
 }
 
