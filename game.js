@@ -1,103 +1,95 @@
-// ===================================================
-// BESTLIFE - MODULAR ISOMETRIC CITY + TRAFFIC ENGINE
-// ===================================================
+// =========================================================
+// BESTLIFE - HIGH-DETAIL VECTOR ISOMETRIC ENGINE
+// =========================================================
 
-const GRID_SIZE = 18;
-const TILE_WIDTH = 110;
-const TILE_HEIGHT = 55;
+const GRID_SIZE = 16;
+const TILE_WIDTH = 120;
+const TILE_HEIGHT = 60;
 const MAP_DATA = [];
 
 // Камера
 const camera = {
     x: 0,
     y: 0,
-    zoom: 0.65,
+    zoom: 0.6,
     minZoom: 0.35,
-    maxZoom: 2.2,
+    maxZoom: 2.0,
     isDragging: false,
     lastX: 0,
     lastY: 0,
     touchPinchDist: 0
 };
 
-// Дом игрока (Оранжевый)
-const PLAYER_HOME = { r: 8, c: 4 };
+// Оранжевый дом игрока (сетка r: 6, c: 3)
+const PLAYER_HOME = { r: 6, c: 3 };
 let animTimer = 0;
 
-// Массивы живых объектов
+// Машины и пешеходы
 const CARS = [];
 const PEDESTRIANS = [];
 
-// Генерация разветвленного изометрического города
+// Построение карты города
 function generateCityMap() {
     for (let r = 0; r < GRID_SIZE; r++) {
         MAP_DATA[r] = [];
         for (let c = 0; c < GRID_SIZE; c++) {
-            // Река
-            if (c === 10 || c === 11) {
+            if (c === 9 || c === 10) {
                 MAP_DATA[r][c] = { type: 'water' };
-            } 
-            // Дорожная сеть
-            else if (r === 4 || r === 12 || c === 4 || c === 14) {
+            } else if (r === 4 || r === 11 || c === 3 || c === 13) {
                 MAP_DATA[r][c] = { type: 'road' };
-            } 
-            // Дом игрока (Оранжевый)
-            else if (r === PLAYER_HOME.r && c === PLAYER_HOME.c) {
-                MAP_DATA[r][c] = { type: 'player_home', height: 60, wallColor: '#ea580c', roofColor: '#f97316' };
-            } 
-            // Здания и парки
-            else {
-                const seed = (r * 13 + c * 29) % 100;
-                if (seed < 20) {
+            } else if (r === PLAYER_HOME.r && c === PLAYER_HOME.c) {
+                MAP_DATA[r][c] = { type: 'player_home', height: 70, wallColor: '#ea580c', roofColor: '#f97316' };
+            } else {
+                const seed = (r * 17 + c * 29) % 100;
+                if (seed < 18) {
                     MAP_DATA[r][c] = { type: 'park' };
-                } else if (seed < 50) {
-                    MAP_DATA[r][c] = { type: 'house', height: 45, wallColor: '#cbd5e1', roofColor: '#ef4444' };
-                } else if (seed < 80) {
-                    MAP_DATA[r][c] = { type: 'office', height: 90, wallColor: '#334155', roofColor: '#0284c7' };
+                } else if (seed < 45) {
+                    MAP_DATA[r][c] = { type: 'house', height: 50, wallColor: '#e2e8f0', roofColor: '#dc2626' };
+                } else if (seed < 75) {
+                    MAP_DATA[r][c] = { type: 'office', height: 95, wallColor: '#334155', roofColor: '#0284c7' };
                 } else {
-                    MAP_DATA[r][c] = { type: 'skyscraper', height: 140, wallColor: '#1e293b', roofColor: '#38bdf8' };
+                    MAP_DATA[r][c] = { type: 'skyscraper', height: 150, wallColor: '#1e293b', roofColor: '#38bdf8' };
                 }
             }
         }
     }
 
-    // Инициализация машин и пешеходов
-    spawnTrafficAndPeople();
+    initTrafficAndPeople();
 }
 
-// Спавн машинок и пешеходов
-function spawnTrafficAndPeople() {
+// Создание машинок и людей
+function initTrafficAndPeople() {
     CARS.length = 0;
     PEDESTRIANS.length = 0;
 
-    // Машины
-    const colors = ['#e11d48', '#2563eb', '#f59e0b', '#10b981', '#ffffff', '#475569'];
-    for (let i = 0; i < 14; i++) {
-        const isHorizontal = Math.random() > 0.5;
-        const r = isHorizontal ? (Math.random() > 0.5 ? 4 : 12) : Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
-        const c = !isHorizontal ? (Math.random() > 0.5 ? 4 : 14) : Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+    const carColors = ['#dc2626', '#2563eb', '#f59e0b', '#10b981', '#ffffff', '#475569'];
+    
+    // Спавн машинок строго по дорожным полосам
+    for (let i = 0; i < 10; i++) {
+        const isHorizontal = i % 2 === 0;
+        const r = isHorizontal ? (i < 5 ? 4 : 11) : Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+        const c = !isHorizontal ? (i < 5 ? 3 : 13) : Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
 
         CARS.push({
             r: r,
             c: c,
             progress: Math.random(),
-            dir: isHorizontal ? 'C' : 'R', // Позиционирование по сетке
-            speed: 0.005 + Math.random() * 0.005,
-            color: colors[Math.floor(Math.random() * colors.length)]
+            dir: isHorizontal ? 'C' : 'R',
+            speed: 0.004 + Math.random() * 0.003,
+            color: carColors[Math.floor(Math.random() * carColors.length)]
         });
     }
 
-    // Пешеходы
-    const shirts = ['#38bdf8', '#f43f5e', '#a855f7', '#eab308', '#22c55e', '#ffffff'];
-    for (let i = 0; i < 20; i++) {
+    // Спавн пешеходов на тротуарах
+    for (let i = 0; i < 16; i++) {
         PEDESTRIANS.push({
             r: Math.floor(Math.random() * (GRID_SIZE - 2)) + 1,
             c: Math.floor(Math.random() * (GRID_SIZE - 2)) + 1,
-            offsetX: (Math.random() - 0.5) * 0.6,
-            offsetY: (Math.random() - 0.5) * 0.6,
-            dirX: (Math.random() - 0.5) * 0.01,
-            dirY: (Math.random() - 0.5) * 0.01,
-            shirt: shirts[Math.floor(Math.random() * shirts.length)],
+            offsetX: (Math.random() - 0.5) * 0.5,
+            offsetY: (Math.random() - 0.5) * 0.5,
+            dirX: (Math.random() - 0.5) * 0.008,
+            dirY: (Math.random() - 0.5) * 0.008,
+            shirt: carColors[Math.floor(Math.random() * carColors.length)],
             walkFrame: Math.random() * 10
         });
     }
@@ -166,7 +158,7 @@ function fitAndCenterMap() {
     const fitZoomY = (canvas.height * 0.9) / (GRID_SIZE * TILE_HEIGHT);
     
     camera.minZoom = Math.max(0.35, Math.min(fitZoomX, fitZoomY));
-    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.75);
+    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.65);
     
     camera.x = canvas.width / 2;
     camera.y = canvas.height / 2;
@@ -203,19 +195,16 @@ window.addEventListener('resize', () => {
     }
 });
 
-// ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ ОБНОВЛЕНИЯ И ОТРИСОВКИ
 function renderLoop() {
     if (!gameScreen.classList.contains('hidden')) {
-        animTimer += 0.05;
+        animTimer += 0.04;
         updateEntities();
         render();
         requestAnimationFrame(renderLoop);
     }
 }
 
-// Движение машин и пешеходов
 function updateEntities() {
-    // Движение машин
     CARS.forEach(car => {
         car.progress += car.speed;
         if (car.progress >= 1) {
@@ -225,13 +214,12 @@ function updateEntities() {
         }
     });
 
-    // Движение пешеходов
     PEDESTRIANS.forEach(p => {
         p.offsetX += p.dirX;
         p.offsetY += p.dirY;
-        p.walkFrame += 0.15;
+        p.walkFrame += 0.12;
 
-        if (Math.abs(p.offsetX) > 0.8 || Math.abs(p.offsetY) > 0.8) {
+        if (Math.abs(p.offsetX) > 0.6 || Math.abs(p.offsetY) > 0.6) {
             p.dirX *= -1;
             p.dirY *= -1;
         }
@@ -251,7 +239,9 @@ function isoToScreen(r, c) {
     };
 }
 
-// РЕНДЕР МОДУЛЬНОГО ГОРОДА С ОПТИМИЗАЦИЕЙ СЛОЕВ
+// ------------------------------------------
+// ВЕКТОРНЫЙ РЕНДЕР КАРТЫ С ТЕКСТУРАМИ
+// ------------------------------------------
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -263,23 +253,23 @@ function render() {
             const pos = isoToScreen(r, c);
             const tile = MAP_DATA[r][c];
 
-            // 1. Поверхность (Дорога, Газон, Вода)
+            // 1. Поверхность и тротуары
             drawTileBase(pos.x, pos.y, w, h, tile);
 
-            // 2. Пешеходы на этой плитке
+            // 2. Пешеходы
             drawPedestriansOnTile(r, c, pos.x, pos.y, w, h);
 
-            // 3. Машины на этой плитке
+            // 3. Настоящие 3D Машинки
             drawCarsOnTile(r, c, w, h);
 
-            // 4. Здание (Оно перекрывает пешеходов/машины сзади)
+            // 4. Текстурные дома
             if (tile.height) {
-                drawBuilding(pos.x, pos.y, w, h, tile);
+                drawDetailedBuilding(pos.x, pos.y, w, h, tile);
             }
         }
     }
 
-    // РИСУЕМ СТРЕЛКУ НАД ДОМОМ ИГРОКА
+    // 5. Указатель над домом игрока
     drawHomePointer();
 }
 
@@ -292,18 +282,21 @@ function drawTileBase(x, y, w, h, tile) {
     ctx.closePath();
 
     if (tile.type === 'road') {
-        ctx.fillStyle = '#334155';
+        // Асфальт с дорожной разметкой
+        ctx.fillStyle = '#2b3545';
         ctx.fill();
         ctx.strokeStyle = '#1e293b';
         ctx.stroke();
 
-        // Разметка пешеходного перехода
-        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        // Белая прерывистая разделительная полоса
+        ctx.strokeStyle = '#f8fafc';
         ctx.lineWidth = 1.5 * camera.zoom;
+        ctx.setLineDash([4 * camera.zoom, 4 * camera.zoom]);
         ctx.beginPath();
         ctx.moveTo(x - w / 4, y + h / 4);
         ctx.lineTo(x + w / 4, y + h * 0.75);
         ctx.stroke();
+        ctx.setLineDash([]);
     } else if (tile.type === 'water') {
         ctx.fillStyle = '#0284c7';
         ctx.fill();
@@ -312,12 +305,13 @@ function drawTileBase(x, y, w, h, tile) {
     } else if (tile.type === 'park') {
         ctx.fillStyle = '#10b981';
         ctx.fill();
-        // Деревья
+        // Объемное деревце
         ctx.fillStyle = '#047857';
         ctx.beginPath();
-        ctx.arc(x, y + h / 2, 7 * camera.zoom, 0, Math.PI * 2);
+        ctx.arc(x, y + h / 2 - 4 * camera.zoom, 8 * camera.zoom, 0, Math.PI * 2);
         ctx.fill();
     } else {
+        // Зеленый яркий газон
         ctx.fillStyle = '#22c55e';
         ctx.fill();
         ctx.strokeStyle = '#16a34a';
@@ -325,11 +319,11 @@ function drawTileBase(x, y, w, h, tile) {
     }
 }
 
-// Отрисовка детализированных изометрических зданий
-function drawBuilding(x, y, w, h, tile) {
+// Детализированные текстурные дома с рамами и окнами
+function drawDetailedBuilding(x, y, w, h, tile) {
     const bh = tile.height * camera.zoom;
 
-    // Левая грань (Фасад)
+    // Левая фасадная стенка
     ctx.beginPath();
     ctx.moveTo(x - w / 2, y + h / 2);
     ctx.lineTo(x, y + h);
@@ -339,7 +333,7 @@ function drawBuilding(x, y, w, h, tile) {
     ctx.fillStyle = adjustColor(tile.wallColor, -15);
     ctx.fill();
 
-    // Правая грань
+    // Правая стенка
     ctx.beginPath();
     ctx.moveTo(x, y + h);
     ctx.lineTo(x + w / 2, y + h / 2);
@@ -349,8 +343,8 @@ function drawBuilding(x, y, w, h, tile) {
     ctx.fillStyle = adjustColor(tile.wallColor, -35);
     ctx.fill();
 
-    // Окна со светящимся оттенком
-    drawBuildingWindows(x, y, w, h, bh);
+    // Окна и балконы
+    drawWindowsAndBalconies(x, y, w, h, bh, tile);
 
     // Крыша
     ctx.beginPath();
@@ -361,40 +355,60 @@ function drawBuilding(x, y, w, h, tile) {
     ctx.closePath();
     ctx.fillStyle = tile.roofColor;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+
+    // Блик и парапет на крыше
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.5 * camera.zoom;
     ctx.stroke();
 }
 
-function drawBuildingWindows(x, y, w, h, bh) {
-    if (bh < 30 * camera.zoom) return;
-    ctx.fillStyle = '#fef08a';
-    const layers = Math.floor(bh / (14 * camera.zoom));
+function drawWindowsAndBalconies(x, y, w, h, bh, tile) {
+    if (bh < 35 * camera.zoom) return;
+    const floors = Math.floor(bh / (14 * camera.zoom));
 
-    for (let i = 1; i < layers; i++) {
-        const wy = (y + h * 0.75) - i * (12 * camera.zoom);
-        ctx.fillRect(x - w / 4 - 2 * camera.zoom, wy - bh + (15 * camera.zoom), 4 * camera.zoom, 4 * camera.zoom);
-        ctx.fillRect(x + w / 4 - 2 * camera.zoom, wy - bh + (15 * camera.zoom), 4 * camera.zoom, 4 * camera.zoom);
+    for (let f = 1; f < floors; f++) {
+        const wy = (y + h * 0.75) - f * (12 * camera.zoom) - bh + (12 * camera.zoom);
+        
+        // Стекла окон (голубые с рамой)
+        ctx.fillStyle = '#93c5fd';
+        ctx.fillRect(x - w / 3, wy, 6 * camera.zoom, 5 * camera.zoom);
+        ctx.fillRect(x + w / 6, wy, 6 * camera.zoom, 5 * camera.zoom);
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.8 * camera.zoom;
+        ctx.strokeRect(x - w / 3, wy, 6 * camera.zoom, 5 * camera.zoom);
+        ctx.strokeRect(x + w / 6, wy, 6 * camera.zoom, 5 * camera.zoom);
     }
 }
 
-// Отрисовка машин
+// Отрисовка НАСТОЯЩИХ ИЗОМЕТРИЧЕСКИХ МАШИН
 function drawCarsOnTile(r, c, w, h) {
     CARS.forEach(car => {
         if (Math.floor(car.r) === r && Math.floor(car.c) === c) {
             const pos = isoToScreen(car.r + (car.dir === 'R' ? car.progress : 0), car.c + (car.dir === 'C' ? car.progress : 0));
-            
+            const cw = 16 * camera.zoom;
+            const ch = 9 * camera.zoom;
+            const cx = pos.x;
+            const cy = pos.y + h / 2 - 2 * camera.zoom;
+
+            // Кузов машины
             ctx.fillStyle = car.color;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y + h / 2, 5 * camera.zoom, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            ctx.fillRect(cx - cw / 2, cy - ch / 2, cw, ch);
+            
+            // Крыша и лобовое стекло
+            ctx.fillStyle = '#bfdbfe';
+            ctx.fillRect(cx - cw / 4, cy - ch / 3, cw / 2, ch / 1.8);
+
+            // Колеса
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(cx - cw / 2.2, cy + ch / 2, 3 * camera.zoom, 2 * camera.zoom);
+            ctx.fillRect(cx + cw / 3, cy + ch / 2, 3 * camera.zoom, 2 * camera.zoom);
         }
     });
 }
 
-// Отрисовка пешеходов
+// Отрисовка ПЕШЕХОДОВ
 function drawPedestriansOnTile(r, c, baseX, baseY, w, h) {
     PEDESTRIANS.forEach(p => {
         if (p.r === r && p.c === c) {
@@ -405,29 +419,29 @@ function drawPedestriansOnTile(r, c, baseX, baseY, w, h) {
             // Голова
             ctx.fillStyle = '#ffdbac';
             ctx.beginPath();
-            ctx.arc(px, py - size * 3, size, 0, Math.PI * 2);
+            ctx.arc(px, py - size * 2.8, size, 0, Math.PI * 2);
             ctx.fill();
 
-            // Рубашка / тело
+            // Рубашка
             ctx.fillStyle = p.shirt;
-            ctx.fillRect(px - size / 1.5, py - size * 2, size * 1.3, size * 2);
+            ctx.fillRect(px - size / 1.5, py - size * 1.8, size * 1.3, size * 1.8);
 
-            // Ноги (анимация шага)
+            // Анимация ног
             ctx.fillStyle = '#1e293b';
-            const legShift = Math.sin(p.walkFrame) * (2 * camera.zoom);
+            const legShift = Math.sin(p.walkFrame) * (1.5 * camera.zoom);
             ctx.fillRect(px - size / 2 + legShift, py, size / 2, size * 1.2);
             ctx.fillRect(px + legShift / 2, py, size / 2, size * 1.2);
         }
     });
 }
 
-// Указатель над оранжевым домом
+// Крупная стрелка над домом игрока
 function drawHomePointer() {
     const homePos = isoToScreen(PLAYER_HOME.r, PLAYER_HOME.c);
-    const offsetY = Math.sin(animTimer) * 10;
+    const offsetY = Math.sin(animTimer * 1.5) * 8;
     
     const indX = homePos.x;
-    const indY = homePos.y - 45 * camera.zoom + offsetY;
+    const indY = homePos.y - 50 * camera.zoom + offsetY;
 
     ctx.save();
 
@@ -460,7 +474,7 @@ function adjustColor(col, amt) {
     return "#" + (g | (b << 8) | (r << 16)).toString(16);
 }
 
-// СДВИГ И КЛИКИ ПО ДОМУ
+// СДВИГ КАРТЫ И КЛИК ПО ДОМУ
 function setupControls() {
     let clickStartX = 0;
     let clickStartY = 0;
@@ -549,7 +563,7 @@ function checkHomeClick(clickX, clickY) {
     const homePos = isoToScreen(PLAYER_HOME.r, PLAYER_HOME.c);
     const clickDist = Math.hypot(clickX - homePos.x, clickY - homePos.y);
 
-    if (clickDist < 60 * camera.zoom || clickDist < 45) {
+    if (clickDist < 65 * camera.zoom || clickDist < 45) {
         apartmentScreen.classList.remove('hidden');
     }
 }
@@ -567,4 +581,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-}
+            }
