@@ -6,7 +6,7 @@
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    -webkit-tap-highlight-color: transparent !important; /* Отключает синее выделение на смартфонах */
+    -webkit-tap-highlight-color: transparent !important;
     outline: none !important;
 }
 
@@ -23,7 +23,7 @@ html, body {
     display: none !important;
 }
 
-/* --- 1. НИТРО (ИНТРО) --- */
+/* --- 1. ИНТРО --- */
 #intro-screen {
     position: fixed;
     top: 0;
@@ -40,11 +40,7 @@ html, body {
     animation: fadeOutIntro 1.2s ease-in-out 3.2s forwards;
 }
 
-.intro-center {
-    margin: auto 0;
-    text-align: center;
-}
-
+.intro-center { margin: auto 0; text-align: center; }
 .intro-title {
     font-size: clamp(2.5rem, 10vw, 5rem);
     font-weight: 900;
@@ -52,25 +48,12 @@ html, body {
     color: #ffffff;
     animation: flickerAnimation 1.8s infinite alternate;
 }
-
-.intro-footer {
-    width: 100%;
-    text-align: center;
-    padding-bottom: clamp(15px, 5vh, 40px);
-}
-
-.intro-subtitle {
-    font-size: clamp(0.9rem, 4vw, 1.3rem);
-    color: rgba(255, 255, 255, 0.75);
-    font-weight: 400;
-    letter-spacing: 2px;
-}
+.intro-footer { width: 100%; text-align: center; padding-bottom: clamp(15px, 5vh, 40px); }
+.intro-subtitle { font-size: clamp(0.9rem, 4vw, 1.3rem); color: rgba(255, 255, 255, 0.75); letter-spacing: 2px; }
 
 @keyframes flickerAnimation {
     0%, 100% { opacity: 1; text-shadow: 0 0 20px rgba(255, 255, 255, 0.9); }
-    30% { opacity: 0.85; }
-    50% { opacity: 0.3; text-shadow: 0 0 5px rgba(255, 255, 255, 0.2); }
-    75% { opacity: 0.95; }
+    50% { opacity: 0.3; }
 }
 
 @keyframes fadeOutIntro {
@@ -96,14 +79,12 @@ html, body {
 .menu-card {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: clamp(25px, 6vw, 45px) clamp(20px, 8vw, 45px);
+    padding: clamp(25px, 6vw, 45px);
     border-radius: 24px;
     text-align: center;
     width: 100%;
     max-width: 360px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
 }
 
 .game-logo {
@@ -112,70 +93,29 @@ html, body {
     background: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 5px;
 }
+.game-sublogo { color: #94a3b8; font-size: 0.9rem; margin-bottom: 30px; letter-spacing: 1.5px; }
 
-.game-sublogo {
-    color: #94a3b8;
-    font-size: clamp(0.85rem, 3.5vw, 1.05rem);
-    margin-bottom: 30px;
-    letter-spacing: 1.5px;
-}
-
-.menu-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
+.menu-buttons { display: flex; flex-direction: column; gap: 14px; }
 .btn {
     padding: 14px 24px;
-    font-size: clamp(1rem, 3.8vw, 1.15rem);
+    font-size: 1.1rem;
     font-weight: 700;
     border: none;
     border-radius: 14px;
     cursor: pointer;
-    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
 }
 
-.btn-primary {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: white;
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
-}
+.btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+.btn-secondary { background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.15); }
 
-.btn-primary:active {
-    transform: scale(0.97);
-}
-
-.btn-secondary {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e2e8f0;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.btn-secondary:active {
-    transform: scale(0.97);
-}
-
-/* --- ВЫБОР ПЕРСОНАЖА (МАЛЬЧИК / ДЕВОЧКА) --- */
-.gender-title {
-    font-size: 1.3rem;
-    font-weight: 900;
-    margin-bottom: 25px;
-    color: #f8fafc;
-}
-
-.gender-options {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-}
-
+/* --- ВЫБОР ПЕРСОНАЖА --- */
+.gender-title { font-size: 1.3rem; margin-bottom: 25px; }
+.gender-options { display: flex; gap: 16px; justify-content: center; }
 .gender-card {
     background: rgba(255, 255, 255, 0.06);
     border: 2px solid rgba(255, 255, 255, 0.15);
@@ -188,68 +128,25 @@ html, body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease;
 }
-
-.gender-card:active {
-    transform: scale(0.95);
-    background: rgba(37, 99, 235, 0.25);
-    border-color: #3b82f6;
-}
-
-.avatar-placeholder {
-    font-size: 2.8rem;
-    margin-bottom: 8px;
-}
-
-.gender-label {
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: #e2e8f0;
-}
+.gender-card:active { transform: scale(0.95); border-color: #3b82f6; }
+.avatar-placeholder { font-size: 2.8rem; margin-bottom: 8px; }
 
 /* --- 3. ИГРОВОЙ ЭКРАН --- */
-#game-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-}
-
-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    background-color: #0b0f19;
-}
-
-#game-ui {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    z-index: 100;
-}
-
+#game-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+canvas { display: block; width: 100%; height: 100%; background-color: #0b0f19; }
+#game-ui { position: absolute; top: 15px; right: 15px; z-index: 100; }
 .hud-btn {
     background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.2);
     padding: 10px 16px;
     border-radius: 12px;
-    font-size: 0.9rem;
     font-weight: 700;
     cursor: pointer;
 }
 
-.hud-btn:active {
-    background: #2563eb;
-}
-
-/* --- 4. ЭКРАН КВАРТИРЫ (БЕЗ РАМОК И КВАДРАТОВ) --- */
+/* --- 4. ЭКРАН КВАРТИРЫ --- */
 #apartment-screen {
     position: fixed;
     top: 0;
@@ -260,27 +157,20 @@ canvas {
     z-index: 1500;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    padding: 0;
 }
 
-/* Надпись в самом верху страницы */
 .apartment-top-title {
     position: absolute;
     top: 22px;
-    left: 0;
     width: 100%;
     text-align: center;
     font-size: 1.3rem;
     font-weight: 900;
     color: #ffffff;
-    letter-spacing: 2px;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
     z-index: 1600;
 }
 
-/* Аккуратная кнопка "Назад" */
 .back-circle-btn {
     position: absolute;
     top: 16px;
@@ -292,16 +182,8 @@ canvas {
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
     font-size: 1.4rem;
-    font-weight: 900;
     cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     z-index: 1700;
-}
-
-.back-circle-btn:active {
-    background: #2563eb;
 }
 
 .apartment-view {
@@ -317,12 +199,9 @@ canvas {
     max-width: 92vw;
     max-height: 82vh;
     object-fit: contain;
-    border: none !important;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* МОДАЛЬНЫЕ ОКНА */
 .modal {
     position: fixed;
     top: 0;
@@ -330,8 +209,6 @@ canvas {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -348,10 +225,4 @@ canvas {
     width: 100%;
     text-align: center;
 }
-
-.settings-placeholder {
-    margin: 20px 0;
-    color: #94a3b8;
-    font-size: 0.95rem;
-    line-height: 1.5;
-                     }
+.settings-placeholder { margin: 20px 0; color: #94a3b8; font-size: 0.95rem; }
