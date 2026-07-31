@@ -1,5 +1,5 @@
 // =========================================================
-// BESTLIFE - DISTRICT OVERLAY ENGINE (GAZON + ASSETS/RAYON1..4)
+// BESTLIFE - HIGH-PRECISION DISTRICT ENGINE (PROPORTIONAL)
 // =========================================================
 
 // Камера
@@ -8,7 +8,7 @@ const camera = {
     y: 0,
     zoom: 0.5,
     minZoom: 0.3,
-    maxZoom: 1.8,
+    maxZoom: 2.2,
     isDragging: false,
     lastX: 0,
     lastY: 0,
@@ -29,12 +29,12 @@ gazonImg.onload = () => {
     }
 };
 
-// Загрузка районов из папки assets/
+// Районы в папке assets/ с ТОЧНЫМИ координатной привязкой и сохранёнными пропорциями
 const DISTRICTS = [
-    { id: 'rayon1', src: 'assets/rayon1.png', img: new Image(), loaded: false, x: 0.01, y: 0.10, w: 0.29, h: 0.28 },
-    { id: 'rayon2', src: 'assets/rayon2.png', img: new Image(), loaded: false, x: 0.13, y: 0.22, w: 0.37, h: 0.31 },
-    { id: 'rayon3', src: 'assets/rayon3.png', img: new Image(), loaded: false, x: 0.01, y: 0.35, w: 0.32, h: 0.26 },
-    { id: 'rayon4', src: 'assets/rayon4.png', img: new Image(), loaded: false, x: 0.31, y: 0.02, w: 0.50, h: 0.33 }
+    { id: 'rayon1', src: 'assets/rayon1.png', img: new Image(), loaded: false, anchorX: 0.051, anchorY: 0.205, scaleW: 0.245 },
+    { id: 'rayon2', src: 'assets/rayon2.png', img: new Image(), loaded: false, anchorX: 0.012, anchorY: 0.355, scaleW: 0.285 },
+    { id: 'rayon3', src: 'assets/rayon3.png', img: new Image(), loaded: false, anchorX: 0.012, anchorY: 0.520, scaleW: 0.335 },
+    { id: 'rayon4', src: 'assets/rayon4.png', img: new Image(), loaded: false, anchorX: 0.285, anchorY: 0.025, scaleW: 0.420 }
 ];
 
 DISTRICTS.forEach(d => {
@@ -44,37 +44,6 @@ DISTRICTS.forEach(d => {
         render();
     };
 });
-
-// Живой трафик машин и пешеходов
-const CARS = [];
-const PEDESTRIANS = [];
-
-function initTraffic() {
-    CARS.length = 0;
-    PEDESTRIANS.length = 0;
-    const colors = ['#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#ffffff', '#8b5cf6'];
-
-    for (let i = 0; i < 14; i++) {
-        CARS.push({
-            rx: 0.1 + Math.random() * 0.8,
-            ry: 0.1 + Math.random() * 0.8,
-            speedX: (Math.random() - 0.5) * 0.0015,
-            speedY: (Math.random() - 0.5) * 0.0015,
-            color: colors[Math.floor(Math.random() * colors.length)]
-        });
-    }
-
-    for (let i = 0; i < 20; i++) {
-        PEDESTRIANS.push({
-            rx: 0.1 + Math.random() * 0.8,
-            ry: 0.1 + Math.random() * 0.8,
-            speedX: (Math.random() - 0.5) * 0.0006,
-            speedY: (Math.random() - 0.5) * 0.0006,
-            shirt: colors[Math.floor(Math.random() * colors.length)],
-            walkFrame: Math.random() * 10
-        });
-    }
-}
 
 // DOM Элементы
 const introScreen = document.getElementById('intro-screen');
@@ -123,7 +92,6 @@ function launchGame() {
     
     resizeCanvas();
     fitAndCenterMap();
-    initTraffic();
     setupControls();
     
     requestAnimationFrame(renderLoop);
@@ -168,9 +136,14 @@ function clampCamera() {
     }
 }
 
+// Высокое разрешение Canvas (HiDPI / Retina для максимальной четкости)
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.scale(dpr, dpr);
 }
 
 window.addEventListener('resize', () => {
@@ -183,31 +156,22 @@ window.addEventListener('resize', () => {
 function renderLoop() {
     if (!gameScreen.classList.contains('hidden')) {
         animTimer += 0.04;
-        updateEntities();
         render();
         requestAnimationFrame(renderLoop);
     }
 }
 
-function updateEntities() {
-    CARS.forEach(car => {
-        car.rx += car.speedX;
-        car.ry += car.speedY;
-        if (car.rx < 0.05 || car.rx > 0.95) car.speedX *= -1;
-        if (car.ry < 0.05 || car.ry > 0.95) car.speedY *= -1;
-    });
-
-    PEDESTRIANS.forEach(p => {
-        p.rx += p.speedX;
-        p.ry += p.speedY;
-        p.walkFrame += 0.12;
-        if (p.rx < 0.05 || p.rx > 0.95) p.speedX *= -1;
-        if (p.ry < 0.05 || p.ry > 0.95) p.speedY *= -1;
-    });
-}
-
+// ------------------------------------------
+// ВЫСОКОЧЁТКИЙ РЕНДЕР КАРТЫ С РАЙОНАМИ
+// ------------------------------------------
 function render() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cssWidth = window.innerWidth;
+    const cssHeight = window.innerHeight;
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+    // Включаем максимально качественное сглаживание текстур
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const map = getMapDimensions();
     const mapLeft = camera.x - map.w / 2;
@@ -221,58 +185,23 @@ function render() {
         ctx.fillRect(mapLeft, mapTop, map.w, map.h);
     }
 
-    // 2. Пешеходы
-    drawPedestrians(mapLeft, mapTop, map.w, map.h);
-
-    // 3. Машинки
-    drawCars(mapLeft, mapTop, map.w, map.h);
-
-    // 4. Наложенные районы (assets/rayon1.png, assets/rayon2.png, ...)
+    // 2. Отрисовка наложенных районов С СОХРАНЕНИЕМ ЕСТЕСТВЕННОГО СООТНОШЕНИЯ СТОРУН
     DISTRICTS.forEach(d => {
         if (d.loaded) {
-            const dx = mapLeft + d.x * map.w;
-            const dy = mapTop + d.y * map.h;
-            const dw = d.w * map.w;
-            const dh = d.h * map.h;
+            const dx = mapLeft + d.anchorX * map.w;
+            const dy = mapTop + d.anchorY * map.h;
+            
+            // Ширина пропорциональна карте, а высота вычисляется строго из исходного Aspect Ratio
+            const dw = map.w * d.scaleW;
+            const aspectRatio = d.img.naturalWidth / d.img.naturalHeight;
+            const dh = dw / aspectRatio;
+
             ctx.drawImage(d.img, dx, dy, dw, dh);
         }
     });
 
-    // 5. Указатель над домом игрока
+    // 3. Указатель над домом игрока
     drawHomePointer(mapLeft, mapTop, map.w, map.h);
-}
-
-function drawCars(mapLeft, mapTop, mapW, mapH) {
-    CARS.forEach(car => {
-        const cx = mapLeft + car.rx * mapW;
-        const cy = mapTop + car.ry * mapH;
-        const cw = 16 * camera.zoom;
-        const ch = 9 * camera.zoom;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(cx - cw / 2, cy + ch / 2, cw, ch / 3);
-
-        ctx.fillStyle = car.color;
-        ctx.fillRect(cx - cw / 2, cy - ch / 2, cw, ch);
-        ctx.fillStyle = '#bfdbfe';
-        ctx.fillRect(cx - cw / 4, cy - ch / 3, cw / 2, ch / 1.8);
-    });
-}
-
-function drawPedestrians(mapLeft, mapTop, mapW, mapH) {
-    PEDESTRIANS.forEach(p => {
-        const px = mapLeft + p.rx * mapW;
-        const py = mapTop + p.ry * mapH;
-        const size = 3 * camera.zoom;
-
-        ctx.fillStyle = '#ffdbac';
-        ctx.beginPath();
-        ctx.arc(px, py - size * 2.8, size, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = p.shirt;
-        ctx.fillRect(px - size / 1.5, py - size * 1.8, size * 1.3, size * 1.8);
-    });
 }
 
 function getHomePos(mapLeft, mapTop, mapW, mapH) {
@@ -421,4 +350,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-            }
+}
