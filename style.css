@@ -23,7 +23,7 @@ html, body {
     display: none !important;
 }
 
-/* --- 1. НИТРО (ИНТРО) --- */
+/* --- 1. ИНТРО --- */
 #intro-screen {
     position: fixed;
     top: 0;
@@ -146,7 +146,7 @@ html, body {
 
 /* --- 3. ИГРОВОЙ ЭКРАН --- */
 #game-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
-canvas { display: block; width: 100%; height: 100%; background-color: #0d1527; }
+canvas { display: block; width: 100%; height: 100%; background-color: #0f172a; }
 #game-ui { position: absolute; top: 15px; right: 15px; z-index: 100; }
 .hud-btn {
     background: rgba(15, 23, 42, 0.85);
