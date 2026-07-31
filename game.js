@@ -1,18 +1,13 @@
 // =========================================================
-// BESTLIFE - HD VECTOR ISOMETRIC CITY ENGINE
+// BESTLIFE - DISTRICT OVERLAY ENGINE (GAZON + ASSETS/RAYON1..4)
 // =========================================================
-
-const GRID_SIZE = 16;
-const TILE_WIDTH = 130;
-const TILE_HEIGHT = 65;
-const MAP_DATA = [];
 
 // Камера
 const camera = {
     x: 0,
     y: 0,
-    zoom: 0.55,
-    minZoom: 0.35,
+    zoom: 0.5,
+    minZoom: 0.3,
     maxZoom: 1.8,
     isDragging: false,
     lastX: 0,
@@ -20,84 +15,68 @@ const camera = {
     touchPinchDist: 0
 };
 
-// Оранжевый дом игрока (сетка r: 6, c: 3)
-const PLAYER_HOME = { r: 6, c: 3 };
 let animTimer = 0;
 
-// Живые объекты
+// Загрузка базовой карты gazon.png (в корне репозитория)
+const gazonImg = new Image();
+let isGazonLoaded = false;
+gazonImg.src = 'gazon.png';
+gazonImg.onload = () => {
+    isGazonLoaded = true;
+    if (!gameScreen.classList.contains('hidden')) {
+        fitAndCenterMap();
+        render();
+    }
+};
+
+// Загрузка районов из папки assets/
+const DISTRICTS = [
+    { id: 'rayon1', src: 'assets/rayon1.png', img: new Image(), loaded: false, x: 0.01, y: 0.10, w: 0.29, h: 0.28 },
+    { id: 'rayon2', src: 'assets/rayon2.png', img: new Image(), loaded: false, x: 0.13, y: 0.22, w: 0.37, h: 0.31 },
+    { id: 'rayon3', src: 'assets/rayon3.png', img: new Image(), loaded: false, x: 0.01, y: 0.35, w: 0.32, h: 0.26 },
+    { id: 'rayon4', src: 'assets/rayon4.png', img: new Image(), loaded: false, x: 0.31, y: 0.02, w: 0.50, h: 0.33 }
+];
+
+DISTRICTS.forEach(d => {
+    d.img.src = d.src;
+    d.img.onload = () => {
+        d.loaded = true;
+        render();
+    };
+});
+
+// Живой трафик машин и пешеходов
 const CARS = [];
 const PEDESTRIANS = [];
 
-// Генерация изометрического города
-function generateCityMap() {
-    for (let r = 0; r < GRID_SIZE; r++) {
-        MAP_DATA[r] = [];
-        for (let c = 0; c < GRID_SIZE; c++) {
-            if (c === 9 || c === 10) {
-                MAP_DATA[r][c] = { type: 'water' };
-            } else if (r === 4 || r === 11 || c === 3 || c === 13) {
-                MAP_DATA[r][c] = { type: 'road' };
-            } else if (r === PLAYER_HOME.r && c === PLAYER_HOME.c) {
-                MAP_DATA[r][c] = { type: 'player_home', height: 75, wallColor: '#ea580c', roofColor: '#c2410c' };
-            } else {
-                const seed = (r * 17 + c * 29) % 100;
-                if (seed < 18) {
-                    MAP_DATA[r][c] = { type: 'park' };
-                } else if (seed < 48) {
-                    MAP_DATA[r][c] = { type: 'house', height: 55, wallColor: '#e2e8f0', roofColor: '#b91c1c' };
-                } else if (seed < 78) {
-                    MAP_DATA[r][c] = { type: 'office', height: 100, wallColor: '#334155', roofColor: '#0284c7' };
-                } else {
-                    MAP_DATA[r][c] = { type: 'skyscraper', height: 160, wallColor: '#1e293b', roofColor: '#38bdf8' };
-                }
-            }
-        }
-    }
-
-    initTrafficAndPeople();
-}
-
-// Полноценный спавн машин и пешеходов
-function initTrafficAndPeople() {
+function initTraffic() {
     CARS.length = 0;
     PEDESTRIANS.length = 0;
+    const colors = ['#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#ffffff', '#8b5cf6'];
 
-    const carColors = ['#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#f8fafc', '#475569', '#8b5cf6'];
-    
-    // Машинки едут строго по полосам дорог
-    for (let i = 0; i < 12; i++) {
-        const isHorizontal = i % 2 === 0;
-        const r = isHorizontal ? (i < 6 ? 4 : 11) : Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
-        const c = !isHorizontal ? (i < 6 ? 3 : 13) : Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
-
+    for (let i = 0; i < 14; i++) {
         CARS.push({
-            r: r,
-            c: c,
-            progress: Math.random(),
-            dir: isHorizontal ? 'C' : 'R',
-            speed: 0.003 + Math.random() * 0.003,
-            color: carColors[Math.floor(Math.random() * carColors.length)],
-            type: Math.random() > 0.3 ? 'sedan' : 'bus'
+            rx: 0.1 + Math.random() * 0.8,
+            ry: 0.1 + Math.random() * 0.8,
+            speedX: (Math.random() - 0.5) * 0.0015,
+            speedY: (Math.random() - 0.5) * 0.0015,
+            color: colors[Math.floor(Math.random() * colors.length)]
         });
     }
 
-    // Пешеходы на тротуарах
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 20; i++) {
         PEDESTRIANS.push({
-            r: Math.floor(Math.random() * (GRID_SIZE - 2)) + 1,
-            c: Math.floor(Math.random() * (GRID_SIZE - 2)) + 1,
-            offsetX: (Math.random() - 0.5) * 0.5,
-            offsetY: (Math.random() - 0.5) * 0.5,
-            dirX: (Math.random() - 0.5) * 0.006,
-            dirY: (Math.random() - 0.5) * 0.006,
-            shirt: carColors[Math.floor(Math.random() * carColors.length)],
-            pants: '#1e293b',
+            rx: 0.1 + Math.random() * 0.8,
+            ry: 0.1 + Math.random() * 0.8,
+            speedX: (Math.random() - 0.5) * 0.0006,
+            speedY: (Math.random() - 0.5) * 0.0006,
+            shirt: colors[Math.floor(Math.random() * colors.length)],
             walkFrame: Math.random() * 10
         });
     }
 }
 
-// UI элементы
+// DOM Элементы
 const introScreen = document.getElementById('intro-screen');
 const mainMenu = document.getElementById('main-menu');
 const gameScreen = document.getElementById('game-screen');
@@ -142,24 +121,29 @@ function launchGame() {
     mainMenu.classList.add('hidden');
     gameScreen.classList.remove('hidden');
     
-    generateCityMap();
     resizeCanvas();
     fitAndCenterMap();
+    initTraffic();
     setupControls();
     
     requestAnimationFrame(renderLoop);
 }
 
 function getMapDimensions() {
-    return { w: GRID_SIZE * TILE_WIDTH * camera.zoom, h: GRID_SIZE * TILE_HEIGHT * camera.zoom };
+    const w = (isGazonLoaded ? gazonImg.width : 2000) * camera.zoom;
+    const h = (isGazonLoaded ? gazonImg.height : 2000) * camera.zoom;
+    return { w, h };
 }
 
 function fitAndCenterMap() {
-    const fitZoomX = (canvas.width * 0.9) / (GRID_SIZE * TILE_WIDTH);
-    const fitZoomY = (canvas.height * 0.9) / (GRID_SIZE * TILE_HEIGHT);
+    const mapW = isGazonLoaded ? gazonImg.width : 2000;
+    const mapH = isGazonLoaded ? gazonImg.height : 2000;
+
+    const fitZoomX = (canvas.width * 0.95) / mapW;
+    const fitZoomY = (canvas.height * 0.95) / mapH;
     
-    camera.minZoom = Math.max(0.35, Math.min(fitZoomX, fitZoomY));
-    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.55);
+    camera.minZoom = Math.max(0.25, Math.min(fitZoomX, fitZoomY));
+    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.6);
     
     camera.x = canvas.width / 2;
     camera.y = canvas.height / 2;
@@ -207,328 +191,105 @@ function renderLoop() {
 
 function updateEntities() {
     CARS.forEach(car => {
-        car.progress += car.speed;
-        if (car.progress >= 1) {
-            car.progress = 0;
-            if (car.dir === 'C') car.r = (car.r + 1) % GRID_SIZE;
-            else car.c = (car.c + 1) % GRID_SIZE;
-        }
+        car.rx += car.speedX;
+        car.ry += car.speedY;
+        if (car.rx < 0.05 || car.rx > 0.95) car.speedX *= -1;
+        if (car.ry < 0.05 || car.ry > 0.95) car.speedY *= -1;
     });
 
     PEDESTRIANS.forEach(p => {
-        p.offsetX += p.dirX;
-        p.offsetY += p.dirY;
+        p.rx += p.speedX;
+        p.ry += p.speedY;
         p.walkFrame += 0.12;
-
-        if (Math.abs(p.offsetX) > 0.6 || Math.abs(p.offsetY) > 0.6) {
-            p.dirX *= -1;
-            p.dirY *= -1;
-        }
+        if (p.rx < 0.05 || p.rx > 0.95) p.speedX *= -1;
+        if (p.ry < 0.05 || p.ry > 0.95) p.speedY *= -1;
     });
 }
 
-function isoToScreen(r, c) {
-    const w = TILE_WIDTH * camera.zoom;
-    const h = TILE_HEIGHT * camera.zoom;
-    const map = getMapDimensions();
-    const startX = camera.x;
-    const startY = camera.y - map.h / 2;
-
-    return {
-        x: (c - r) * (w / 2) + startX,
-        y: (c + r) * (h / 2) + startY
-    };
-}
-
-// ------------------------------------------
-// ВЕКТОРНЫЙ ОТРИСОВЩИК ДВИЖКА (HD HD)
-// ------------------------------------------
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const w = TILE_WIDTH * camera.zoom;
-    const h = TILE_HEIGHT * camera.zoom;
+    const map = getMapDimensions();
+    const mapLeft = camera.x - map.w / 2;
+    const mapTop = camera.y - map.h / 2;
 
-    for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
-            const pos = isoToScreen(r, c);
-            const tile = MAP_DATA[r][c];
-
-            // 1. Поверхность (Дорога, Газон, Вода)
-            drawTileBase(pos.x, pos.y, w, h, tile);
-
-            // 2. Пешеходы
-            drawPedestriansOnTile(r, c, pos.x, pos.y, w, h);
-
-            // 3. Настоящие 3D Машинки
-            drawCarsOnTile(r, c, w, h);
-
-            // 4. Текстурные дома
-            if (tile.height) {
-                if (tile.type === 'player_home') {
-                    drawPlayerOrangeHome(pos.x, pos.y, w, h, tile);
-                } else {
-                    drawDetailedBuilding(pos.x, pos.y, w, h, tile);
-                }
-            }
-        }
-    }
-
-    // 5. Стрелка над оранжевым домом
-    drawHomePointer();
-}
-
-function drawTileBase(x, y, w, h, tile) {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + w / 2, y + h / 2);
-    ctx.lineTo(x, y + h);
-    ctx.lineTo(x - w / 2, y + h / 2);
-    ctx.closePath();
-
-    if (tile.type === 'road') {
-        // Темный качественный асфальт
-        ctx.fillStyle = '#1e293b';
-        ctx.fill();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // Белая сплошная / двойная прерывистая разметка
-        ctx.strokeStyle = '#f8fafc';
-        ctx.lineWidth = 1.5 * camera.zoom;
-        ctx.setLineDash([5 * camera.zoom, 5 * camera.zoom]);
-        ctx.beginPath();
-        ctx.moveTo(x - w / 4, y + h / 4);
-        ctx.lineTo(x + w / 4, y + h * 0.75);
-        ctx.stroke();
-        ctx.setLineDash([]);
-    } else if (tile.type === 'water') {
-        ctx.fillStyle = '#0284c7';
-        ctx.fill();
-        ctx.strokeStyle = '#38bdf8';
-        ctx.stroke();
-    } else if (tile.type === 'park') {
-        ctx.fillStyle = '#10b981';
-        ctx.fill();
-        // Объемное дерево с несколькими слоями листвы
-        ctx.fillStyle = '#047857';
-        ctx.beginPath();
-        ctx.arc(x, y + h / 2 - 4 * camera.zoom, 9 * camera.zoom, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#059669';
-        ctx.beginPath();
-        ctx.arc(x - 2 * camera.zoom, y + h / 2 - 6 * camera.zoom, 6 * camera.zoom, 0, Math.PI * 2);
-        ctx.fill();
+    // 1. Отрисовка базового gazon.png (из корня репозитория)
+    if (isGazonLoaded) {
+        ctx.drawImage(gazonImg, mapLeft, mapTop, map.w, map.h);
     } else {
-        // Зеленый насыщенный газон
         ctx.fillStyle = '#22c55e';
-        ctx.fill();
-        ctx.strokeStyle = '#15803d';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    }
-}
-
-// ОРАНЖЕВЫЙ ДОМ ИГРОКА (ТОЧНАЯ КОПИЯ СО СКРИНШОТА)
-function drawPlayerOrangeHome(x, y, w, h, tile) {
-    const bh = tile.height * camera.zoom;
-
-    // Левая фасадная стена (Оранжевая)
-    ctx.beginPath();
-    ctx.moveTo(x - w / 2, y + h / 2);
-    ctx.lineTo(x, y + h);
-    ctx.lineTo(x, y + h - bh);
-    ctx.lineTo(x - w / 2, y + h / 2 - bh);
-    ctx.closePath();
-    ctx.fillStyle = '#ea580c';
-    ctx.fill();
-    ctx.strokeStyle = '#9a3412';
-    ctx.stroke();
-
-    // Правая стена
-    ctx.beginPath();
-    ctx.moveTo(x, y + h);
-    ctx.lineTo(x + w / 2, y + h / 2);
-    ctx.lineTo(x + w / 2, y + h / 2 - bh);
-    ctx.lineTo(x, y + h - bh);
-    ctx.closePath();
-    ctx.fillStyle = '#c2410c';
-    ctx.fill();
-    ctx.stroke();
-
-    // Белые балкончики и окна
-    const floors = 4;
-    for (let f = 1; f <= floors; f++) {
-        const wy = (y + h * 0.8) - f * (13 * camera.zoom);
-        
-        // Балконы с поручнями
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - w / 3, wy, 10 * camera.zoom, 6 * camera.zoom);
-        ctx.fillRect(x + w / 8, wy, 10 * camera.zoom, 6 * camera.zoom);
-
-        // Окна
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(x - w / 3 + 2 * camera.zoom, wy + 1 * camera.zoom, 6 * camera.zoom, 4 * camera.zoom);
-        ctx.fillRect(x + w / 8 + 2 * camera.zoom, wy + 1 * camera.zoom, 6 * camera.zoom, 4 * camera.zoom);
+        ctx.fillRect(mapLeft, mapTop, map.w, map.h);
     }
 
-    // Входная группа (Дверь и козырек)
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(x - 4 * camera.zoom, y + h - 10 * camera.zoom, 8 * camera.zoom, 9 * camera.zoom);
+    // 2. Пешеходы
+    drawPedestrians(mapLeft, mapTop, map.w, map.h);
 
-    // Крыша
-    ctx.beginPath();
-    ctx.moveTo(x, y - bh);
-    ctx.lineTo(x + w / 2, y + h / 2 - bh);
-    ctx.lineTo(x, y + h - bh);
-    ctx.lineTo(x - w / 2, y + h / 2 - bh);
-    ctx.closePath();
-    ctx.fillStyle = '#475569';
-    ctx.fill();
-    ctx.strokeStyle = '#ea580c';
-    ctx.lineWidth = 2 * camera.zoom;
-    ctx.stroke();
+    // 3. Машинки
+    drawCars(mapLeft, mapTop, map.w, map.h);
+
+    // 4. Наложенные районы (assets/rayon1.png, assets/rayon2.png, ...)
+    DISTRICTS.forEach(d => {
+        if (d.loaded) {
+            const dx = mapLeft + d.x * map.w;
+            const dy = mapTop + d.y * map.h;
+            const dw = d.w * map.w;
+            const dh = d.h * map.h;
+            ctx.drawImage(d.img, dx, dy, dw, dh);
+        }
+    });
+
+    // 5. Указатель над домом игрока
+    drawHomePointer(mapLeft, mapTop, map.w, map.h);
 }
 
-// Обычные красивейшие дома
-function drawDetailedBuilding(x, y, w, h, tile) {
-    const bh = tile.height * camera.zoom;
-
-    // Левая грань
-    ctx.beginPath();
-    ctx.moveTo(x - w / 2, y + h / 2);
-    ctx.lineTo(x, y + h);
-    ctx.lineTo(x, y + h - bh);
-    ctx.lineTo(x - w / 2, y + h / 2 - bh);
-    ctx.closePath();
-    ctx.fillStyle = adjustColor(tile.wallColor, -10);
-    ctx.fill();
-
-    // Правая грань
-    ctx.beginPath();
-    ctx.moveTo(x, y + h);
-    ctx.lineTo(x + w / 2, y + h / 2);
-    ctx.lineTo(x + w / 2, y + h / 2 - bh);
-    ctx.lineTo(x, y + h - bh);
-    ctx.closePath();
-    ctx.fillStyle = adjustColor(tile.wallColor, -30);
-    ctx.fill();
-
-    // Окна со светящимся градиентом
-    drawWindows(x, y, w, h, bh);
-
-    // Крыша
-    ctx.beginPath();
-    ctx.moveTo(x, y - bh);
-    ctx.lineTo(x + w / 2, y + h / 2 - bh);
-    ctx.lineTo(x, y + h - bh);
-    ctx.lineTo(x - w / 2, y + h / 2 - bh);
-    ctx.closePath();
-    ctx.fillStyle = tile.roofColor;
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 1 * camera.zoom;
-    ctx.stroke();
-}
-
-function drawWindows(x, y, w, h, bh) {
-    if (bh < 35 * camera.zoom) return;
-    const floors = Math.floor(bh / (15 * camera.zoom));
-
-    for (let f = 1; f < floors; f++) {
-        const wy = (y + h * 0.75) - f * (13 * camera.zoom) - bh + (12 * camera.zoom);
-        
-        ctx.fillStyle = '#93c5fd';
-        ctx.fillRect(x - w / 3, wy, 7 * camera.zoom, 5 * camera.zoom);
-        ctx.fillRect(x + w / 6, wy, 7 * camera.zoom, 5 * camera.zoom);
-
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 0.8 * camera.zoom;
-        ctx.strokeRect(x - w / 3, wy, 7 * camera.zoom, 5 * camera.zoom);
-        ctx.strokeRect(x + w / 6, wy, 7 * camera.zoom, 5 * camera.zoom);
-    }
-}
-
-// 3D ИЗОМЕТРИЧЕСКИЕ МАШИНЫС ФАРАМИ И КОЛЕСАМИ
-function drawCarsOnTile(r, c, w, h) {
+function drawCars(mapLeft, mapTop, mapW, mapH) {
     CARS.forEach(car => {
-        if (Math.floor(car.r) === r && Math.floor(car.c) === c) {
-            const pos = isoToScreen(car.r + (car.dir === 'R' ? car.progress : 0), car.c + (car.dir === 'C' ? car.progress : 0));
-            const cw = 18 * camera.zoom;
-            const ch = 10 * camera.zoom;
-            const cx = pos.x;
-            const cy = pos.y + h / 2 - 2 * camera.zoom;
+        const cx = mapLeft + car.rx * mapW;
+        const cy = mapTop + car.ry * mapH;
+        const cw = 16 * camera.zoom;
+        const ch = 9 * camera.zoom;
 
-            // Тень под машиной
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath();
-            ctx.ellipse(cx, cy + ch / 2, cw / 1.8, ch / 2, 0, 0, Math.PI * 2);
-            ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(cx - cw / 2, cy + ch / 2, cw, ch / 3);
 
-            // Кузов автомобиля
-            ctx.fillStyle = car.color;
-            ctx.fillRect(cx - cw / 2, cy - ch / 2, cw, ch);
-
-            // Лобовое стекло
-            ctx.fillStyle = '#bfdbfe';
-            ctx.fillRect(cx - cw / 4, cy - ch / 3, cw / 2, ch / 1.8);
-
-            // Светящиеся фары
-            ctx.fillStyle = '#fef08a';
-            ctx.fillRect(cx + cw / 2 - 2 * camera.zoom, cy - ch / 3, 2 * camera.zoom, 3 * camera.zoom);
-
-            // Колеса
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(cx - cw / 2.2, cy + ch / 2.5, 3 * camera.zoom, 2 * camera.zoom);
-            ctx.fillRect(cx + cw / 3, cy + ch / 2.5, 3 * camera.zoom, 2 * camera.zoom);
-        }
+        ctx.fillStyle = car.color;
+        ctx.fillRect(cx - cw / 2, cy - ch / 2, cw, ch);
+        ctx.fillStyle = '#bfdbfe';
+        ctx.fillRect(cx - cw / 4, cy - ch / 3, cw / 2, ch / 1.8);
     });
 }
 
-// ПЕШЕХОДЫ НА ТРОТУАРАХ
-function drawPedestriansOnTile(r, c, baseX, baseY, w, h) {
+function drawPedestrians(mapLeft, mapTop, mapW, mapH) {
     PEDESTRIANS.forEach(p => {
-        if (p.r === r && p.c === c) {
-            const px = baseX + p.offsetX * (w / 2);
-            const py = baseY + h / 2 + p.offsetY * (h / 2);
-            const size = 3 * camera.zoom;
+        const px = mapLeft + p.rx * mapW;
+        const py = mapTop + p.ry * mapH;
+        const size = 3 * camera.zoom;
 
-            // Тень
-            ctx.fillStyle = 'rgba(0,0,0,0.25)';
-            ctx.beginPath();
-            ctx.arc(px, py + size, size, 0, Math.PI * 2);
-            ctx.fill();
+        ctx.fillStyle = '#ffdbac';
+        ctx.beginPath();
+        ctx.arc(px, py - size * 2.8, size, 0, Math.PI * 2);
+        ctx.fill();
 
-            // Голова
-            ctx.fillStyle = '#ffdbac';
-            ctx.beginPath();
-            ctx.arc(px, py - size * 2.8, size, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Одежда
-            ctx.fillStyle = p.shirt;
-            ctx.fillRect(px - size / 1.5, py - size * 1.8, size * 1.3, size * 1.8);
-
-            // Ноги
-            ctx.fillStyle = p.pants;
-            const legShift = Math.sin(p.walkFrame) * (1.5 * camera.zoom);
-            ctx.fillRect(px - size / 2 + legShift, py, size / 2, size * 1.2);
-            ctx.fillRect(px + legShift / 2, py, size / 2, size * 1.2);
-        }
+        ctx.fillStyle = p.shirt;
+        ctx.fillRect(px - size / 1.5, py - size * 1.8, size * 1.3, size * 1.8);
     });
 }
 
-// Крупный неоновый указатель над оранжевым домом
-function drawHomePointer() {
-    const homePos = isoToScreen(PLAYER_HOME.r, PLAYER_HOME.c);
+function getHomePos(mapLeft, mapTop, mapW, mapH) {
+    return {
+        x: mapLeft + mapW * 0.16,
+        y: mapTop + mapH * 0.22
+    };
+}
+
+function drawHomePointer(mapLeft, mapTop, mapW, mapH) {
+    const home = getHomePos(mapLeft, mapTop, mapW, mapH);
     const offsetY = Math.sin(animTimer * 1.5) * 8;
     
-    const indX = homePos.x;
-    const indY = homePos.y - 55 * camera.zoom + offsetY;
+    const indX = home.x;
+    const indY = home.y - 40 * camera.zoom + offsetY;
 
     ctx.save();
-
     const width = Math.max(22, 28 * camera.zoom);
     const height = Math.max(26, 32 * camera.zoom);
 
@@ -550,15 +311,6 @@ function drawHomePointer() {
     ctx.restore();
 }
 
-function adjustColor(col, amt) {
-    let num = parseInt(col.replace('#', ''), 16);
-    let r = (num >> 16) + amt; if (r > 255) r = 255; else if (r < 0) r = 0;
-    let b = ((num >> 8) & 0x00FF) + amt; if (b > 255) b = 255; else if (b < 0) b = 0;
-    let g = (num & 0x0000FF) + amt; if (g > 255) g = 255; else if (g < 0) g = 0;
-    return "#" + (g | (b << 8) | (r << 16)).toString(16);
-}
-
-// УПРАВЛЕНИЕ КАРТОЙ И КЛИКИ
 function setupControls() {
     let clickStartX = 0;
     let clickStartY = 0;
@@ -644,8 +396,12 @@ function setupControls() {
 }
 
 function checkHomeClick(clickX, clickY) {
-    const homePos = isoToScreen(PLAYER_HOME.r, PLAYER_HOME.c);
-    const clickDist = Math.hypot(clickX - homePos.x, clickY - homePos.y);
+    const map = getMapDimensions();
+    const mapLeft = camera.x - map.w / 2;
+    const mapTop = camera.y - map.h / 2;
+    const home = getHomePos(mapLeft, mapTop, map.w, map.h);
+
+    const clickDist = Math.hypot(clickX - home.x, clickY - home.y);
 
     if (clickDist < 65 * camera.zoom || clickDist < 45) {
         apartmentScreen.classList.remove('hidden');
@@ -665,4 +421,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-                                                            }
+            }
