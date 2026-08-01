@@ -9,7 +9,7 @@
 </head>
 <body>
 
-    <!-- 1. ИНТРО / НИТРО -->
+    <!-- 1. НИТРО / ИНТРО -->
     <div id="intro-screen">
         <div class="intro-center">
             <h1 class="intro-title">BestLife</h1>
@@ -62,27 +62,26 @@
         </div>
     </div>
 
-    <!-- 3. ИГРОВОЙ ЭКРАН -->
-    <div id="game-screen" class="hidden">
-        <canvas id="gameCanvas"></canvas>
-        
-        <!-- ВЕРХНЯЯ ПАНЕЛЬ С ВРЕМЕНЕМ И ДАТОЙ (СНАЧАЛА ВРЕМЯ, СПРАВА ДАТА) -->
-        <div id="time-pill">
-            <span id="hud-clock-text">00:00</span>
-            <span class="pill-divider">•</span>
-            <span id="hud-date-text">1 май</span>
-        </div>
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ С ВРЕМЕНЕМ И ДАТОЙ (ОБЩАЯ ДЛЯ ГОРОДА И КВАРТИРЫ) -->
+    <div id="time-pill">
+        <span id="hud-clock-text">06:00</span>
+        <span class="pill-divider">•</span>
+        <span id="hud-date-text">1 май</span>
     </div>
 
-    <!-- 4. ЭКРАН КВАРТИРЫ ИГРОКА С КРОВАТЬЮ -->
+    <!-- 3. ИГРОВОЙ ЭКРАН (ГОРОД) -->
+    <div id="game-screen" class="hidden">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <!-- 4. ЭКРАН КВАРТИРЫ ИГРОКА (ПОЛНЫЙ ЭКРАН БЕЗ РАМОК) -->
     <div id="apartment-screen" class="hidden">
         <button id="btn-exit-apartment" class="back-circle-btn" title="Вернуться в город">←</button>
-        <h3 class="apartment-top-title">Моя Квартира</h3>
         
         <div class="apartment-view">
             <div class="room-container">
-                <img id="apartment-img" src="house.png" alt="Квартира" onerror="this.src='https://via.placeholder.com/600x600/1e293b/38bdf8?text=Загрузите+house.png+в+GitHub'">
-                <!-- ОТДЕЛЬНАЯ ПОДСВЕЧИВАЮЩАЯСЯ КРОВАТЬ -->
+                <img id="apartment-img" src="house.png" alt="Квартира" onerror="this.src='https://via.placeholder.com/1080x1920/1e293b/38bdf8?text=Загрузите+house.png'">
+                <!-- ПОДГОНЕННАЯ КРОВАТЬ С ПОДСВЕТКОЙ ЛЕВЕЕ -->
                 <img id="bed-img" src="bed.png" alt="Кровать" onerror="this.style.display='none'">
             </div>
         </div>
@@ -102,4 +101,4 @@
 
     <script src="game.js"></script>
 </body>
-                        </html>
+            </html>
