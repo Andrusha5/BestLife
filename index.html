@@ -66,28 +66,40 @@
     <div id="game-screen" class="hidden">
         <canvas id="gameCanvas"></canvas>
         
-        <!-- ВЕРХНЯЯ ПАНЕЛЬ С ВРЕМЕНЕМ И ДАТОЙ -->
+        <!-- ВЕРХНЯЯ ПАНЕЛЬ С ВРЕМЕНЕМ И ДАТОЙ (СНАЧАЛА ВРЕМЯ, СПРАВА ДАТА) -->
         <div id="time-pill">
-            <span id="hud-date-text">1 май</span>
-            <span class="pill-divider">•</span>
             <span id="hud-clock-text">00:00</span>
-        </div>
-
-        <div id="game-ui">
-            <button id="btn-menu-back" class="hud-btn">🚪 В меню</button>
+            <span class="pill-divider">•</span>
+            <span id="hud-date-text">1 май</span>
         </div>
     </div>
 
-    <!-- 4. ЭКРАН КВАРТИРЫ ИГРОКА -->
+    <!-- 4. ЭКРАН КВАРТИРЫ ИГРОКА С КРОВАТЬЮ -->
     <div id="apartment-screen" class="hidden">
         <button id="btn-exit-apartment" class="back-circle-btn" title="Вернуться в город">←</button>
         <h3 class="apartment-top-title">Моя Квартира</h3>
         
         <div class="apartment-view">
-            <img id="apartment-img" src="house.png" alt="Квартира" onerror="this.src='https://via.placeholder.com/600x600/1e293b/38bdf8?text=Загрузите+house.png+в+GitHub'">
+            <div class="room-container">
+                <img id="apartment-img" src="house.png" alt="Квартира" onerror="this.src='https://via.placeholder.com/600x600/1e293b/38bdf8?text=Загрузите+house.png+в+GitHub'">
+                <!-- ОТДЕЛЬНАЯ ПОДСВЕЧИВАЮЩАЯСЯ КРОВАТЬ -->
+                <img id="bed-img" src="bed.png" alt="Кровать" onerror="this.style.display='none'">
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО КРОВАТИ (СОН / ПРЕДУПРЕЖДЕНИЕ) -->
+    <div id="bed-modal" class="modal hidden">
+        <div class="modal-card bed-card">
+            <h2 id="bed-modal-title">🛏 Кровать</h2>
+            <p id="bed-modal-text">Текст взаимодействия</p>
+            <div id="bed-modal-actions">
+                <button id="btn-sleep-action" class="btn btn-primary hidden">Поспать</button>
+                <button id="btn-close-bed-modal" class="btn btn-secondary">Закрыть</button>
+            </div>
         </div>
     </div>
 
     <script src="game.js"></script>
 </body>
-                </html>
+                        </html>
