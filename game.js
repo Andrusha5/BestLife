@@ -1,14 +1,14 @@
 // =========================================================
-// BESTLIFE - FIXED CAMERA + PRECISE DISTRICT POSITIONS
+// BESTLIFE - FULL MAP VISIBLE + PRECISE DISTRICT POSITIONS
 // =========================================================
 
-// Камера - исправленные настройки для полного обзора
+// Камера - полностью переработана для видимости всей карты
 const camera = {
     x: 0,
     y: 0,
-    zoom: 1.0,          // Начинаем с нормального зума
-    minZoom: 0.15,      // Можно отдалить очень далеко
-    maxZoom: 3.0,       // Можно приблизить
+    zoom: 1.0,
+    minZoom: 0.1,
+    maxZoom: 4.0,
     isDragging: false,
     lastX: 0,
     lastY: 0,
@@ -17,6 +17,8 @@ const camera = {
 
 let animTimer = 0;
 let isGameRunning = false;
+let mapNaturalWidth = 2000;
+let mapNaturalHeight = 2000;
 
 // Загрузка базовой карты gazon.png
 const gazonImg = new Image();
@@ -24,24 +26,25 @@ let isGazonLoaded = false;
 gazonImg.src = 'gazon.png';
 gazonImg.onload = () => {
     isGazonLoaded = true;
+    mapNaturalWidth = gazonImg.width;
+    mapNaturalHeight = gazonImg.height;
     if (isGameRunning) {
         fitAndCenterMap();
         render();
     }
 };
 
-// Районы - ТОЧНЫЕ координаты с правильным позиционированием
-// Исправлено на основе вашего скриншота
+// Районы - ИСПРАВЛЕННЫЕ КООРДИНАТЫ
 const DISTRICTS = [
     { 
         id: 'rayon1', 
         src: 'assets/rayon1.png', 
         img: new Image(), 
         loaded: false,
-        anchorX: 0.045,   // Левая граница
-        anchorY: 0.200,   // Верхняя граница
-        scaleW: 0.250,    // Ширина
-        scaleH: 0.170     // Высота
+        anchorX: 0.045,
+        anchorY: 0.200,
+        scaleW: 0.250,
+        scaleH: 0.170
     },
     { 
         id: 'rayon2', 
@@ -164,24 +167,23 @@ function getMapDimensions() {
 }
 
 // =========================================================
-// НАСТРОЙКА КАМЕРЫ - ПОКАЗЫВАЕМ ВСЮ КАРТУ
+// НАСТРОЙКА КАМЕРЫ - КАРТА ПОЛНОСТЬЮ ВИДНА
 // =========================================================
 function fitAndCenterMap() {
     const mapW = isGazonLoaded && gazonImg.width > 0 ? gazonImg.width : 2000;
     const mapH = isGazonLoaded && gazonImg.height > 0 ? gazonImg.height : 2000;
 
-    // Вычисляем зум чтобы карта помещалась с отступами
-    const padding = 0.92; // 8% отступы по краям
+    // Вычисляем зум чтобы карта полностью помещалась с отступами
+    const padding = 0.90;
     const fitZoomX = (canvas.width * padding) / mapW;
     const fitZoomY = (canvas.height * padding) / mapH;
-    
-    // Берем минимальный зум чтобы карта полностью помещалась
     const fitZoom = Math.min(fitZoomX, fitZoomY);
     
-    camera.minZoom = Math.max(0.12, fitZoom * 0.6);
-    camera.zoom = fitZoom; // Начинаем с зума, показывающего всю карту
+    // Минимальный зум - можно отдалить еще больше
+    camera.minZoom = fitZoom * 0.5;
+    camera.zoom = fitZoom;
     
-    // Центрируем карту
+    // Центрируем карту по центру экрана
     camera.x = canvas.width / 2;
     camera.y = canvas.height / 2;
     
@@ -189,7 +191,7 @@ function fitAndCenterMap() {
 }
 
 // =========================================================
-// ОГРАНИЧЕНИЕ КАМЕРЫ
+// ОГРАНИЧЕНИЕ КАМЕРЫ - НЕ ДАЕМ КАРТЕ УХОДИТЬ ЗА ЭКРАН
 // =========================================================
 function clampCamera() {
     const map = getMapDimensions();
@@ -199,17 +201,22 @@ function clampCamera() {
     const halfW = mapW / 2;
     const halfH = mapH / 2;
 
-    // Ограничиваем чтобы карта не выходила за экран
-    if (mapW > canvas.width) {
-        camera.x = Math.max(canvas.width - halfW, Math.min(halfW, camera.x));
-    } else {
+    // Если карта меньше экрана - центрируем
+    if (mapW < canvas.width) {
         camera.x = canvas.width / 2;
+    } else {
+        // Иначе ограничиваем, чтобы края карты не выходили за экран
+        const minX = canvas.width - halfW;
+        const maxX = halfW;
+        camera.x = Math.max(minX, Math.min(maxX, camera.x));
     }
 
-    if (mapH > canvas.height) {
-        camera.y = Math.max(canvas.height - halfH, Math.min(halfH, camera.y));
-    } else {
+    if (mapH < canvas.height) {
         camera.y = canvas.height / 2;
+    } else {
+        const minY = canvas.height - halfH;
+        const maxY = halfH;
+        camera.y = Math.max(minY, Math.min(maxY, camera.y));
     }
 }
 
@@ -228,7 +235,7 @@ function resizeCanvas() {
 window.addEventListener('resize', () => {
     if (isGameRunning) {
         resizeCanvas();
-        clampCamera();
+        fitAndCenterMap();
         render();
     }
 });
@@ -252,7 +259,6 @@ function render() {
     const cssHeight = window.innerHeight;
     ctx.clearRect(0, 0, cssWidth, cssHeight);
 
-    // Настройки качества
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
@@ -266,7 +272,6 @@ function render() {
     if (isGazonLoaded && gazonImg.width > 0) {
         ctx.drawImage(gazonImg, mapLeft, mapTop, mapW, mapH);
     } else {
-        // Запасной вариант
         const gradient = ctx.createLinearGradient(0, 0, cssWidth, cssHeight);
         gradient.addColorStop(0, '#1a3a1a');
         gradient.addColorStop(1, '#2d5a2d');
@@ -314,13 +319,6 @@ function drawHomePointer(mapLeft, mapTop, mapW, mapH) {
     const width = Math.max(20, 26 * camera.zoom);
     const height = Math.max(24, 30 * camera.zoom);
 
-    // Треугольник-указатель
-    ctx.beginPath();
-    ctx.moveTo(indX, indY + height / 2);
-    ctx.lineTo(indX - width / 2, indY - height / 2);
-    ctx.lineTo(indX + width / 2, indY - height / 2);
-    ctx.closePath();
-
     // Свечение
     const gradient = ctx.createRadialGradient(indX, indY - height/2, 0, indX, indY - height/2, 40 * camera.zoom);
     gradient.addColorStop(0, 'rgba(0, 240, 255, 0.3)');
@@ -328,7 +326,13 @@ function drawHomePointer(mapLeft, mapTop, mapW, mapH) {
     ctx.fillStyle = gradient;
     ctx.fillRect(indX - 40 * camera.zoom, indY - 50 * camera.zoom, 80 * camera.zoom, 80 * camera.zoom);
 
-    // Сам указатель
+    // Указатель
+    ctx.beginPath();
+    ctx.moveTo(indX, indY + height / 2);
+    ctx.lineTo(indX - width / 2, indY - height / 2);
+    ctx.lineTo(indX + width / 2, indY - height / 2);
+    ctx.closePath();
+
     ctx.fillStyle = '#00f0ff';
     ctx.shadowColor = '#00f0ff';
     ctx.shadowBlur = 20;
@@ -372,7 +376,7 @@ function setupControls() {
         const wasDragging = camera.isDragging;
         camera.isDragging = false;
         const dist = Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY);
-        if (!wasDragging || dist < 8) {
+        if (dist < 8) {
             checkHomeClick(e.clientX, e.clientY);
         }
     });
@@ -417,9 +421,8 @@ function setupControls() {
     }, { passive: true });
 
     canvas.addEventListener('touchend', (e) => {
-        const wasDragging = camera.isDragging;
         camera.isDragging = false;
-        if (e.changedTouches.length > 0 && !wasDragging) {
+        if (e.changedTouches.length > 0) {
             const touch = e.changedTouches[0];
             const dist = Math.hypot(touch.clientX - clickStartX, touch.clientY - clickStartY);
             if (dist < 15) {
@@ -448,7 +451,7 @@ function checkHomeClick(clickX, clickY) {
     const home = getHomePos(mapLeft, mapTop, mapW, mapH);
 
     const clickDist = Math.hypot(clickX - home.x, clickY - home.y);
-    const threshold = Math.max(40, 55 * camera.zoom);
+    const threshold = Math.max(35, 50 * camera.zoom);
 
     if (clickDist < threshold) {
         apartmentScreen.classList.remove('hidden');
@@ -471,4 +474,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-    }
+                  }
