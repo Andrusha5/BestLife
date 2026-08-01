@@ -14,7 +14,7 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: #143217; /* Лесной зеленый фон в стиле Clash of Clans */
+    background-color: #143217;
     color: #fff;
     touch-action: none;
 }
@@ -207,7 +207,7 @@ canvas {
     image-rendering: crisp-edges;
 }
 
-/* ЭЛЕГАНТНЫЙ ОВАЛ ВРЕМЕНИ И ДАТЫ СВЕРХУ В ЦЕНТРЕ */
+/* ВЕРХНИЙ СТЕКЛЯННЫЙ ОВАЛ ВРЕМЕНИ И ДАТЫ */
 #time-pill {
     position: absolute;
     top: 16px;
@@ -230,12 +230,12 @@ canvas {
     letter-spacing: 0.5px;
 }
 
-#hud-date-text {
-    color: #60a5fa; /* Красивый голубой акцент даты */
-}
-
 #hud-clock-text {
     color: #f8fafc;
+}
+
+#hud-date-text {
+    color: #60a5fa;
 }
 
 .pill-divider {
@@ -243,27 +243,7 @@ canvas {
     font-size: 0.8rem;
 }
 
-#game-ui { 
-    position: absolute; 
-    top: 15px; 
-    right: 15px; 
-    z-index: 100; 
-}
-.hud-btn {
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 10px 16px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-.hud-btn:active { background: #2563eb; }
-
-/* --- 4. ЭКРАН КВАРТИРЫ --- */
+/* --- 4. ЭКРАН КВАРТИРЫ И КРОВАТИ --- */
 #apartment-screen {
     position: fixed;
     top: 0;
@@ -318,12 +298,41 @@ canvas {
     padding-top: 50px;
 }
 
+.room-container {
+    position: relative;
+    display: inline-block;
+    max-width: 92vw;
+    max-height: 82vh;
+}
+
 #apartment-img {
+    display: block;
     max-width: 92vw;
     max-height: 82vh;
     object-fit: contain;
-    border: none !important;
     border-radius: 12px;
+}
+
+/* ИНТЕРАКТИВНАЯ КРОВАТЬ С ПОДСВЕТКОЙ */
+#bed-img {
+    position: absolute;
+    bottom: 12%;
+    right: 15%;
+    width: 32%;
+    height: auto;
+    cursor: pointer;
+    z-index: 1650;
+    filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.7));
+    animation: bedPulseGlow 2.2s infinite alternate;
+}
+
+#bed-img:active {
+    transform: scale(0.95);
+}
+
+@keyframes bedPulseGlow {
+    0% { filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5)); }
+    100% { filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.95)); }
 }
 
 /* МОДАЛЬНЫЕ ОКНА */
@@ -333,7 +342,7 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.78);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -349,9 +358,24 @@ canvas {
     max-width: 360px;
     width: 100%;
     text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
 }
+
+.bed-card p {
+    margin: 18px 0 24px 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+}
+
+#bed-modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .settings-placeholder { 
     margin: 20px 0; 
     color: #94a3b8; 
     font-size: 0.95rem; 
-    }
+              }
