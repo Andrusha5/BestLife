@@ -1,5 +1,5 @@
 // =========================================================
-// BESTLIFE - FULL MAP ENGINE WITH CLASH OF CLANS FOREST & TIME
+// BESTLIFE - GAME ENGINE WITH TIME & BED SLEEP MECHANICS
 // =========================================================
 
 // Камера
@@ -46,15 +46,13 @@ tryLoadNextMapSource();
 
 // --- 🕒 СИСТЕМА ИГРОВОГО ВРЕМЕНИ И ДАТЫ ---
 // 10 реальных минут = 24 игровых часа (1 день).
-// 10 минут = 600 секунд -> 1440 игровых минут за 600 сек -> 2.4 игр. мин/сек.
 let gameMinutes = 0; 
 let currentDay = 1;
-let currentMonthIdx = 4; // Май (индекс 4)
+let currentMonthIdx = 4; // Май
 
 const MONTH_NAMES = ['янв', 'февр', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'нояб', 'дек'];
 const DAYS_IN_MONTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-// Загрузка сохраненного времени из localStorage
 function loadSavedTime() {
     const saved = localStorage.getItem('bestlife_time_data');
     if (saved) {
@@ -81,14 +79,14 @@ let lastFrameTime = performance.now();
 
 function updateGameClock() {
     const now = performance.now();
-    const dt = (now - lastFrameTime) / 1000; // секунды
+    const dt = (now - lastFrameTime) / 1000;
     lastFrameTime = now;
 
     if (!gameScreen.classList.contains('hidden')) {
         // За 1 секунду реальности проходит 2.4 игровых минуты
         gameMinutes += dt * 2.4;
 
-        if (gameMinutes >= 1440) { // Прошел 1 день
+        if (gameMinutes >= 1440) { // 24 часа = новый день
             gameMinutes -= 1440;
             currentDay++;
 
@@ -110,11 +108,11 @@ function updateClockUI() {
     const timeStr = String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
     const dateStr = currentDay + ' ' + MONTH_NAMES[currentMonthIdx];
 
-    const dateElem = document.getElementById('hud-date-text');
     const clockElem = document.getElementById('hud-clock-text');
+    const dateElem = document.getElementById('hud-date-text');
 
-    if (dateElem && dateElem.textContent !== dateStr) dateElem.textContent = dateStr;
     if (clockElem && clockElem.textContent !== timeStr) clockElem.textContent = timeStr;
+    if (dateElem && dateElem.textContent !== dateStr) dateElem.textContent = dateStr;
 }
 
 // DOM Элементы
@@ -126,6 +124,14 @@ const apartmentScreen = document.getElementById('apartment-screen');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const settingsModal = document.getElementById('settings-modal');
+
+// Элементы Кровати и Сна
+const bedImg = document.getElementById('bed-img');
+const bedModal = document.getElementById('bed-modal');
+const bedModalTitle = document.getElementById('bed-modal-title');
+const bedModalText = document.getElementById('bed-modal-text');
+const btnSleepAction = document.getElementById('btn-sleep-action');
+const btnCloseBedModal = document.getElementById('btn-close-bed-modal');
 
 setTimeout(() => {
     introScreen.classList.add('hidden');
@@ -149,14 +155,47 @@ function selectGender(gender) {
 
 document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
 document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
-document.getElementById('btn-menu-back').addEventListener('click', () => {
-    gameScreen.classList.add('hidden');
-    mainMenu.classList.remove('hidden');
-});
 
 document.getElementById('btn-exit-apartment').addEventListener('click', () => {
     apartmentScreen.classList.add('hidden');
 });
+
+// КЛИК ПО КРОВАТИ В КВАРТИРЕС
+if (bedImg) {
+    bedImg.addEventListener('click', () => {
+        openBedInteractionModal();
+    });
+}
+
+function openBedInteractionModal() {
+    const currentHours = Math.floor(gameMinutes / 60);
+
+    // Логика День (08:00 - 20:00) vs Ночь (20:00 - 08:00)
+    if (currentHours >= 8 && currentHours < 20) {
+        bedModalTitle.textContent = '☀️ Дневное время';
+        bedModalText.textContent = 'Днём спать неэффективно, энергия мало восстанавливается!';
+        btnSleepAction.classList.add('hidden');
+    } else {
+        bedModalTitle.textContent = '🌙 Ночное время';
+        bedModalText.textContent = 'Ночь — идеальное время для отдыха. Желаете поспать и восстановить силы?';
+        btnSleepAction.classList.remove('hidden');
+    }
+
+    bedModal.classList.remove('hidden');
+}
+
+if (btnCloseBedModal) {
+    btnCloseBedModal.addEventListener('click', () => {
+        bedModal.classList.add('hidden');
+    });
+}
+
+if (btnSleepAction) {
+    btnSleepAction.addEventListener('click', () => {
+        bedModal.classList.add('hidden');
+        // Заглушка взаимодействия сна (позже тут будет засыпание)
+    });
+}
 
 function launchGame() {
     mainMenu.classList.add('hidden');
@@ -194,13 +233,11 @@ function fitAndCenterMap() {
     clampCamera();
 }
 
-// Ограничение камеры в стиле Clash of Clans (видны только загородные леса)
 function clampCamera() {
     const map = getMapDimensions();
     const viewW = window.innerWidth;
     const viewH = window.innerHeight;
 
-    // Расширенные границы, позволяющие видеть пышный лес вокруг города
     const maxOffsetW = map.w * 0.35;
     const maxOffsetH = map.h * 0.35;
 
@@ -208,7 +245,6 @@ function clampCamera() {
     camera.y = Math.max(viewH / 2 - maxOffsetH, Math.min(viewH / 2 + maxOffsetH, camera.y));
 }
 
-// Поддержка HiDPI / Retina для максимальной чёткости
 function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const w = window.innerWidth;
@@ -239,9 +275,6 @@ function renderLoop() {
     }
 }
 
-// ------------------------------------------
-// РЕНДЕР КАРТЫ И ОКУТАЮЩИХ ЛЕСОВ (CLASH OF CLANS)
-// ------------------------------------------
 function render() {
     const viewW = window.innerWidth;
     const viewH = window.innerHeight;
@@ -254,35 +287,31 @@ function render() {
     const mapLeft = camera.x - map.w / 2;
     const mapTop = camera.y - map.h / 2;
 
-    // СЛОЙ 0: Густой лесной покров вокруг карты (в стиле Clash of Clans)
+    // СЛОЙ 0: Лесной покров
     drawClashForestBackground(viewW, viewH, mapLeft, mapTop, map.w, map.h);
 
-    // СЛОЙ 1: Цельная карта города
+    // СЛОЙ 1: Карта города
     if (isMapLoaded) {
         ctx.drawImage(mapImg, mapLeft, mapTop, map.w, map.h);
     }
 
-    // СЛОЙ 2: Плавная тень/граница перехода к лесу
+    // СЛОЙ 2: Тень границ
     drawMapForestBorderShadow(mapLeft, mapTop, map.w, map.h);
 
     // СЛОЙ 3: Неоновый указатель над домом игрока
     drawHomePointer(mapLeft, mapTop, map.w, map.h);
 }
 
-// Отрисовка загородного бесконечного леса в стиле Clash of Clans
 function drawClashForestBackground(viewW, viewH, mapLeft, mapTop, mapW, mapH) {
-    // Базовый сочный травосборник
     ctx.fillStyle = '#143317';
     ctx.fillRect(0, 0, viewW, viewH);
 
-    // Рисуем кроны густых вечнозеленых деревьев по всему фону за пределами города
     const treeRadius = Math.max(16, 22 * camera.zoom);
     const step = treeRadius * 1.5;
 
-    ctx.fillStyle = '#112913'; // Теневой слой леса
+    ctx.fillStyle = '#112913';
     for (let x = -step; x < viewW + step; x += step) {
         for (let y = -step; y < viewH + step; y += step) {
-            // Рисуем деревья только вокруг города
             if (x < mapLeft - 10 || x > mapLeft + mapW + 10 || y < mapTop - 10 || y > mapTop + mapH + 10) {
                 ctx.beginPath();
                 ctx.arc(x, y, treeRadius, 0, Math.PI * 2);
@@ -291,7 +320,7 @@ function drawClashForestBackground(viewW, viewH, mapLeft, mapTop, mapW, mapH) {
         }
     }
 
-    ctx.fillStyle = '#19421c'; // Верхний светлый слой крон
+    ctx.fillStyle = '#19421c';
     for (let x = -step + 5; x < viewW + step; x += step) {
         for (let y = -step + 5; y < viewH + step; y += step) {
             if (x < mapLeft - 10 || x > mapLeft + mapW + 10 || y < mapTop - 10 || y > mapTop + mapH + 10) {
@@ -303,7 +332,6 @@ function drawClashForestBackground(viewW, viewH, mapLeft, mapTop, mapW, mapH) {
     }
 }
 
-// Тень по краям карты для бесшовного объединения с лесом
 function drawMapForestBorderShadow(mapLeft, mapTop, mapW, mapH) {
     ctx.strokeStyle = '#0e210f';
     ctx.lineWidth = Math.max(6, 12 * camera.zoom);
@@ -456,4 +484,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-        }
+}
