@@ -1,5 +1,5 @@
 // =========================================================
-// BESTLIFE - FULL MAP ENGINE WITH REALISTIC LAYERED TRAFFIC
+// BESTLIFE - FULL MAP ENGINE WITH CLASH OF CLANS FOREST & TIME
 // =========================================================
 
 // Камера
@@ -7,7 +7,7 @@ const camera = {
     x: 0,
     y: 0,
     zoom: 0.5,
-    minZoom: 0.25,
+    minZoom: 0.22,
     maxZoom: 2.2,
     isDragging: false,
     lastX: 0,
@@ -17,8 +17,7 @@ const camera = {
 
 let animTimer = 0;
 
-// Загрузка цельной картинки карты города
-// Движок проверяет city_map.png, затем map.png, затем gazon.png
+// Загрузка цельной карты города (city_map.png, map.png или gazon.png)
 const mapImg = new Image();
 let isMapLoaded = false;
 
@@ -45,42 +44,77 @@ mapImg.onerror = () => {
 
 tryLoadNextMapSource();
 
-// --- ДОРОЖНЫЕ ТРАССЫ И СИСТЕМА СЛОЕВ МАШИН ---
-// Дороги задаются точными линиями [startX, startY, endX, endY] в нормализованных координатах [0..1]
-const ROAD_LANES = [
-    // Главный проспект (слева-направо)
-    { startX: 0.05, startY: 0.28, endX: 0.95, endY: 0.73, angle: 26, isBehindHouse: false },
-    // Поперечная улица (сверху-вниз)
-    { startX: 0.28, startY: 0.05, endX: 0.75, endY: 0.92, angle: -62, isBehindHouse: false },
-    // Задняя улица (проходит ЗА домами - машины прячутся за фасадами)
-    { startX: 0.15, startY: 0.12, endX: 0.85, endY: 0.48, angle: 26, isBehindHouse: true }
-];
+// --- 🕒 СИСТЕМА ИГРОВОГО ВРЕМЕНИ И ДАТЫ ---
+// 10 реальных минут = 24 игровых часа (1 день).
+// 10 минут = 600 секунд -> 1440 игровых минут за 600 сек -> 2.4 игр. мин/сек.
+let gameMinutes = 0; 
+let currentDay = 1;
+let currentMonthIdx = 4; // Май (индекс 4)
 
-// Зоны домов (машины прячутся за ними)
-const HOUSE_OCCLUSION_ZONES = [
-    { x: 0.12, y: 0.38, w: 0.22, h: 0.25 },
-    { x: 0.38, y: 0.18, w: 0.25, h: 0.22 },
-    { x: 0.50, y: 0.42, w: 0.22, h: 0.22 }
-];
+const MONTH_NAMES = ['янв', 'февр', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'нояб', 'дек'];
+const DAYS_IN_MONTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-const CARS = [];
+// Загрузка сохраненного времени из localStorage
+function loadSavedTime() {
+    const saved = localStorage.getItem('bestlife_time_data');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            gameMinutes = parsed.minutes || 0;
+            currentDay = parsed.day || 1;
+            currentMonthIdx = parsed.monthIdx !== undefined ? parsed.monthIdx : 4;
+        } catch(e) {}
+    }
+}
 
-function initCars() {
-    CARS.length = 0;
-    const carColors = ['#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#f8fafc', '#8b5cf6', '#dc2626'];
+function saveTimeData() {
+    localStorage.setItem('bestlife_time_data', JSON.stringify({
+        minutes: gameMinutes,
+        day: currentDay,
+        monthIdx: currentMonthIdx
+    }));
+}
 
-    ROAD_LANES.forEach((lane, laneIdx) => {
-        for (let i = 0; i < 3; i++) {
-            CARS.push({
-                laneIdx: laneIdx,
-                progress: (i / 3) + Math.random() * 0.1,
-                speed: 0.0015 + Math.random() * 0.001,
-                color: carColors[Math.floor(Math.random() * carColors.length)],
-                length: 18,
-                width: 10
-            });
+loadSavedTime();
+
+let lastFrameTime = performance.now();
+
+function updateGameClock() {
+    const now = performance.now();
+    const dt = (now - lastFrameTime) / 1000; // секунды
+    lastFrameTime = now;
+
+    if (!gameScreen.classList.contains('hidden')) {
+        // За 1 секунду реальности проходит 2.4 игровых минуты
+        gameMinutes += dt * 2.4;
+
+        if (gameMinutes >= 1440) { // Прошел 1 день
+            gameMinutes -= 1440;
+            currentDay++;
+
+            if (currentDay > DAYS_IN_MONTHS[currentMonthIdx]) {
+                currentDay = 1;
+                currentMonthIdx = (currentMonthIdx + 1) % 12;
+            }
+            saveTimeData();
         }
-    });
+
+        updateClockUI();
+    }
+}
+
+function updateClockUI() {
+    const hours = Math.floor(gameMinutes / 60);
+    const mins = Math.floor(gameMinutes % 60);
+
+    const timeStr = String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+    const dateStr = currentDay + ' ' + MONTH_NAMES[currentMonthIdx];
+
+    const dateElem = document.getElementById('hud-date-text');
+    const clockElem = document.getElementById('hud-clock-text');
+
+    if (dateElem && dateElem.textContent !== dateStr) dateElem.textContent = dateStr;
+    if (clockElem && clockElem.textContent !== timeStr) clockElem.textContent = timeStr;
 }
 
 // DOM Элементы
@@ -130,9 +164,9 @@ function launchGame() {
     
     resizeCanvas();
     fitAndCenterMap();
-    initCars();
     setupControls();
     
+    lastFrameTime = performance.now();
     requestAnimationFrame(renderLoop);
 }
 
@@ -146,39 +180,35 @@ function fitAndCenterMap() {
     const mapW = isMapLoaded ? mapImg.naturalWidth || mapImg.width : 2000;
     const mapH = isMapLoaded ? mapImg.naturalHeight || mapImg.height : 2000;
 
-    const fitZoomX = (canvas.clientWidth * 0.95) / mapW;
-    const fitZoomY = (canvas.clientHeight * 0.95) / mapH;
+    const viewW = window.innerWidth;
+    const viewH = window.innerHeight;
+
+    const fitZoomX = (viewW * 0.92) / mapW;
+    const fitZoomY = (viewH * 0.92) / mapH;
     
     camera.minZoom = Math.max(0.2, Math.min(fitZoomX, fitZoomY));
-    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.6);
+    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.55);
     
-    camera.x = canvas.clientWidth / 2;
-    camera.y = canvas.clientHeight / 2;
+    camera.x = viewW / 2;
+    camera.y = viewH / 2;
     clampCamera();
 }
 
+// Ограничение камеры в стиле Clash of Clans (видны только загородные леса)
 function clampCamera() {
     const map = getMapDimensions();
-    const halfW = map.w / 2;
-    const halfH = map.h / 2;
+    const viewW = window.innerWidth;
+    const viewH = window.innerHeight;
 
-    const viewW = canvas.clientWidth;
-    const viewH = canvas.clientHeight;
+    // Расширенные границы, позволяющие видеть пышный лес вокруг города
+    const maxOffsetW = map.w * 0.35;
+    const maxOffsetH = map.h * 0.35;
 
-    if (map.w > viewW) {
-        camera.x = Math.max(viewW - halfW, Math.min(halfW, camera.x));
-    } else {
-        camera.x = viewW / 2;
-    }
-
-    if (map.h > viewH) {
-        camera.y = Math.max(viewH - halfH, Math.min(halfH, camera.y));
-    } else {
-        camera.y = viewH / 2;
-    }
+    camera.x = Math.max(viewW / 2 - maxOffsetW, Math.min(viewW / 2 + maxOffsetW, camera.x));
+    camera.y = Math.max(viewH / 2 - maxOffsetH, Math.min(viewH / 2 + maxOffsetH, camera.y));
 }
 
-// Поддержка HiDPI / Retina для безупречной чёткости
+// Поддержка HiDPI / Retina для максимальной чёткости
 function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const w = window.innerWidth;
@@ -203,30 +233,20 @@ window.addEventListener('resize', () => {
 function renderLoop() {
     if (!gameScreen.classList.contains('hidden')) {
         animTimer += 0.04;
-        updateCars();
+        updateGameClock();
         render();
         requestAnimationFrame(renderLoop);
     }
 }
 
-function updateCars() {
-    CARS.forEach(car => {
-        car.progress += car.speed;
-        if (car.progress > 1.0) {
-            car.progress = 0.0;
-        }
-    });
-}
-
 // ------------------------------------------
-// ПОСЛОЙНЫЙ РЕНДЕР КАРТЫ И МАТЕРИАЛОВ
+// РЕНДЕР КАРТЫ И ОКУТАЮЩИХ ЛЕСОВ (CLASH OF CLANS)
 // ------------------------------------------
 function render() {
-    const viewW = canvas.clientWidth;
-    const viewH = canvas.clientHeight;
+    const viewW = window.innerWidth;
+    const viewH = window.innerHeight;
     ctx.clearRect(0, 0, viewW, viewH);
 
-    // Включаем самое высокое качество фильтрации
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
@@ -234,71 +254,60 @@ function render() {
     const mapLeft = camera.x - map.w / 2;
     const mapTop = camera.y - map.h / 2;
 
+    // СЛОЙ 0: Густой лесной покров вокруг карты (в стиле Clash of Clans)
+    drawClashForestBackground(viewW, viewH, mapLeft, mapTop, map.w, map.h);
+
     // СЛОЙ 1: Цельная карта города
     if (isMapLoaded) {
         ctx.drawImage(mapImg, mapLeft, mapTop, map.w, map.h);
-    } else {
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(mapLeft, mapTop, map.w, map.h);
     }
 
-    // СЛОЙ 2: Машинки, едущие по дорогам (с укрытием за домами)
-    drawLayeredCars(mapLeft, mapTop, map.w, map.h);
+    // СЛОЙ 2: Плавная тень/граница перехода к лесу
+    drawMapForestBorderShadow(mapLeft, mapTop, map.w, map.h);
 
     // СЛОЙ 3: Неоновый указатель над домом игрока
     drawHomePointer(mapLeft, mapTop, map.w, map.h);
 }
 
-// Рисование машин с укрытием за домами
-function drawLayeredCars(mapLeft, mapTop, mapW, mapH) {
-    CARS.forEach(car => {
-        const lane = ROAD_LANES[car.laneIdx];
-        
-        const rx = lane.startX + (lane.endX - lane.startX) * car.progress;
-        const ry = lane.startY + (lane.endY - lane.startY) * car.progress;
+// Отрисовка загородного бесконечного леса в стиле Clash of Clans
+function drawClashForestBackground(viewW, viewH, mapLeft, mapTop, mapW, mapH) {
+    // Базовый сочный травосборник
+    ctx.fillStyle = '#143317';
+    ctx.fillRect(0, 0, viewW, viewH);
 
-        let isHiddenBehindHouse = lane.isBehindHouse;
-        
-        if (!isHiddenBehindHouse) {
-            HOUSE_OCCLUSION_ZONES.forEach(zone => {
-                if (rx >= zone.x && rx <= zone.x + zone.w && ry >= zone.y && ry <= zone.y + zone.h) {
-                    isHiddenBehindHouse = true;
-                }
-            });
+    // Рисуем кроны густых вечнозеленых деревьев по всему фону за пределами города
+    const treeRadius = Math.max(16, 22 * camera.zoom);
+    const step = treeRadius * 1.5;
+
+    ctx.fillStyle = '#112913'; // Теневой слой леса
+    for (let x = -step; x < viewW + step; x += step) {
+        for (let y = -step; y < viewH + step; y += step) {
+            // Рисуем деревья только вокруг города
+            if (x < mapLeft - 10 || x > mapLeft + mapW + 10 || y < mapTop - 10 || y > mapTop + mapH + 10) {
+                ctx.beginPath();
+                ctx.arc(x, y, treeRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
+    }
 
-        // Если машина проезжает за домом — она прячется за фасадом
-        if (isHiddenBehindHouse) return;
+    ctx.fillStyle = '#19421c'; // Верхний светлый слой крон
+    for (let x = -step + 5; x < viewW + step; x += step) {
+        for (let y = -step + 5; y < viewH + step; y += step) {
+            if (x < mapLeft - 10 || x > mapLeft + mapW + 10 || y < mapTop - 10 || y > mapTop + mapH + 10) {
+                ctx.beginPath();
+                ctx.arc(x - 3, y - 3, treeRadius * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+}
 
-        const cx = mapLeft + rx * mapW;
-        const cy = mapTop + ry * mapH;
-
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate((lane.angle * Math.PI) / 180);
-
-        const cw = car.length * camera.zoom;
-        const ch = car.width * camera.zoom;
-
-        // Тень машины
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillRect(-cw / 2, ch / 2 - 1, cw, ch / 2.5);
-
-        // Кузов
-        ctx.fillStyle = car.color;
-        ctx.fillRect(-cw / 2, -ch / 2, cw, ch);
-
-        // Стекло
-        ctx.fillStyle = '#bfdbfe';
-        ctx.fillRect(cw / 6, -ch / 2 + 1, cw / 3, ch - 2);
-
-        // Фары
-        ctx.fillStyle = '#fef08a';
-        ctx.fillRect(cw / 2 - 1, -ch / 2 + 1, 2 * camera.zoom, 2 * camera.zoom);
-        ctx.fillRect(cw / 2 - 1, ch / 2 - 3, 2 * camera.zoom, 2 * camera.zoom);
-
-        ctx.restore();
-    });
+// Тень по краям карты для бесшовного объединения с лесом
+function drawMapForestBorderShadow(mapLeft, mapTop, mapW, mapH) {
+    ctx.strokeStyle = '#0e210f';
+    ctx.lineWidth = Math.max(6, 12 * camera.zoom);
+    ctx.strokeRect(mapLeft, mapTop, mapW, mapH);
 }
 
 function getHomePos(mapLeft, mapTop, mapW, mapH) {
@@ -447,4 +456,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-     }
+        }
