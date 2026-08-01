@@ -1,14 +1,14 @@
 // =========================================================
-// BESTLIFE - FULL MAP VISIBLE + PRECISE DISTRICT POSITIONS
+// BESTLIFE - FULL MAP ENGINE WITH REALISTIC LAYERED TRAFFIC
 // =========================================================
 
-// Камера - полностью переработана для видимости всей карты
+// Камера
 const camera = {
     x: 0,
     y: 0,
-    zoom: 1.0,
-    minZoom: 0.1,
-    maxZoom: 4.0,
+    zoom: 0.5,
+    minZoom: 0.25,
+    maxZoom: 2.2,
     isDragging: false,
     lastX: 0,
     lastY: 0,
@@ -16,75 +16,72 @@ const camera = {
 };
 
 let animTimer = 0;
-let isGameRunning = false;
-let mapNaturalWidth = 2000;
-let mapNaturalHeight = 2000;
 
-// Загрузка базовой карты gazon.png
-const gazonImg = new Image();
-let isGazonLoaded = false;
-gazonImg.src = 'gazon.png';
-gazonImg.onload = () => {
-    isGazonLoaded = true;
-    mapNaturalWidth = gazonImg.width;
-    mapNaturalHeight = gazonImg.height;
-    if (isGameRunning) {
+// Загрузка цельной картинки карты города
+// Движок проверяет city_map.png, затем map.png, затем gazon.png
+const mapImg = new Image();
+let isMapLoaded = false;
+
+const possibleMapSources = ['city_map.png', 'map.png', 'gazon.png'];
+let sourceIndex = 0;
+
+function tryLoadNextMapSource() {
+    if (sourceIndex >= possibleMapSources.length) return;
+    mapImg.src = possibleMapSources[sourceIndex];
+}
+
+mapImg.onload = () => {
+    isMapLoaded = true;
+    if (!gameScreen.classList.contains('hidden')) {
         fitAndCenterMap();
         render();
     }
 };
 
-// Районы - ИСПРАВЛЕННЫЕ КООРДИНАТЫ
-const DISTRICTS = [
-    { 
-        id: 'rayon1', 
-        src: 'assets/rayon1.png', 
-        img: new Image(), 
-        loaded: false,
-        anchorX: 0.045,
-        anchorY: 0.200,
-        scaleW: 0.250,
-        scaleH: 0.170
-    },
-    { 
-        id: 'rayon2', 
-        src: 'assets/rayon2.png', 
-        img: new Image(), 
-        loaded: false,
-        anchorX: 0.008,
-        anchorY: 0.350,
-        scaleW: 0.290,
-        scaleH: 0.175
-    },
-    { 
-        id: 'rayon3', 
-        src: 'assets/rayon3.png', 
-        img: new Image(), 
-        loaded: false,
-        anchorX: 0.008,
-        anchorY: 0.515,
-        scaleW: 0.340,
-        scaleH: 0.175
-    },
-    { 
-        id: 'rayon4', 
-        src: 'assets/rayon4.png', 
-        img: new Image(), 
-        loaded: false,
-        anchorX: 0.280,
-        anchorY: 0.020,
-        scaleW: 0.425,
-        scaleH: 0.175
-    }
+mapImg.onerror = () => {
+    sourceIndex++;
+    tryLoadNextMapSource();
+};
+
+tryLoadNextMapSource();
+
+// --- ДОРОЖНЫЕ ТРАССЫ И СИСТЕМА СЛОЕВ МАШИН ---
+// Дороги задаются точными линиями [startX, startY, endX, endY] в нормализованных координатах [0..1]
+const ROAD_LANES = [
+    // Главный проспект (слева-направо)
+    { startX: 0.05, startY: 0.28, endX: 0.95, endY: 0.73, angle: 26, isBehindHouse: false },
+    // Поперечная улица (сверху-вниз)
+    { startX: 0.28, startY: 0.05, endX: 0.75, endY: 0.92, angle: -62, isBehindHouse: false },
+    // Задняя улица (проходит ЗА домами - машины прячутся за фасадами)
+    { startX: 0.15, startY: 0.12, endX: 0.85, endY: 0.48, angle: 26, isBehindHouse: true }
 ];
 
-DISTRICTS.forEach(d => {
-    d.img.src = d.src;
-    d.img.onload = () => {
-        d.loaded = true;
-        if (isGameRunning) render();
-    };
-});
+// Зоны домов (машины прячутся за ними)
+const HOUSE_OCCLUSION_ZONES = [
+    { x: 0.12, y: 0.38, w: 0.22, h: 0.25 },
+    { x: 0.38, y: 0.18, w: 0.25, h: 0.22 },
+    { x: 0.50, y: 0.42, w: 0.22, h: 0.22 }
+];
+
+const CARS = [];
+
+function initCars() {
+    CARS.length = 0;
+    const carColors = ['#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#f8fafc', '#8b5cf6', '#dc2626'];
+
+    ROAD_LANES.forEach((lane, laneIdx) => {
+        for (let i = 0; i < 3; i++) {
+            CARS.push({
+                laneIdx: laneIdx,
+                progress: (i / 3) + Math.random() * 0.1,
+                speed: 0.0015 + Math.random() * 0.001,
+                color: carColors[Math.floor(Math.random() * carColors.length)],
+                length: 18,
+                width: 10
+            });
+        }
+    });
+}
 
 // DOM Элементы
 const introScreen = document.getElementById('intro-screen');
@@ -96,23 +93,17 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const settingsModal = document.getElementById('settings-modal');
 
-// Показываем интро, затем меню
 setTimeout(() => {
     introScreen.classList.add('hidden');
     mainMenu.classList.remove('hidden');
 }, 4200);
 
-// Кнопка "Играть"
 document.getElementById('btn-play').addEventListener('click', () => {
     const savedGender = localStorage.getItem('bestlife_gender');
-    if (!savedGender) {
-        genderModal.classList.remove('hidden');
-    } else {
-        launchGame();
-    }
+    if (!savedGender) genderModal.classList.remove('hidden');
+    else launchGame();
 });
 
-// Выбор пола
 document.getElementById('gender-boy').addEventListener('click', () => selectGender('boy'));
 document.getElementById('gender-girl').addEventListener('click', () => selectGender('girl'));
 
@@ -122,211 +113,212 @@ function selectGender(gender) {
     launchGame();
 }
 
-// Настройки
-document.getElementById('btn-settings').addEventListener('click', () => {
-    settingsModal.classList.remove('hidden');
-});
-document.getElementById('btn-close-settings').addEventListener('click', () => {
-    settingsModal.classList.add('hidden');
-});
-
-// Выход в меню из игры
+document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
+document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
 document.getElementById('btn-menu-back').addEventListener('click', () => {
-    isGameRunning = false;
     gameScreen.classList.add('hidden');
     mainMenu.classList.remove('hidden');
 });
 
-// Выход из квартиры
 document.getElementById('btn-exit-apartment').addEventListener('click', () => {
     apartmentScreen.classList.add('hidden');
 });
 
-// =========================================================
-// ЗАПУСК ИГРЫ
-// =========================================================
 function launchGame() {
     mainMenu.classList.add('hidden');
     gameScreen.classList.remove('hidden');
-    isGameRunning = true;
     
     resizeCanvas();
     fitAndCenterMap();
+    initCars();
     setupControls();
     
-    renderLoop();
+    requestAnimationFrame(renderLoop);
 }
 
-// =========================================================
-// РАЗМЕРЫ КАРТЫ
-// =========================================================
 function getMapDimensions() {
-    const w = (isGazonLoaded && gazonImg.width > 0) ? gazonImg.width : 2000;
-    const h = (isGazonLoaded && gazonImg.height > 0) ? gazonImg.height : 2000;
+    const w = (isMapLoaded ? mapImg.naturalWidth || mapImg.width : 2000) * camera.zoom;
+    const h = (isMapLoaded ? mapImg.naturalHeight || mapImg.height : 2000) * camera.zoom;
     return { w, h };
 }
 
-// =========================================================
-// НАСТРОЙКА КАМЕРЫ - КАРТА ПОЛНОСТЬЮ ВИДНА
-// =========================================================
 function fitAndCenterMap() {
-    const mapW = isGazonLoaded && gazonImg.width > 0 ? gazonImg.width : 2000;
-    const mapH = isGazonLoaded && gazonImg.height > 0 ? gazonImg.height : 2000;
+    const mapW = isMapLoaded ? mapImg.naturalWidth || mapImg.width : 2000;
+    const mapH = isMapLoaded ? mapImg.naturalHeight || mapImg.height : 2000;
 
-    // Вычисляем зум чтобы карта полностью помещалась с отступами
-    const padding = 0.90;
-    const fitZoomX = (canvas.width * padding) / mapW;
-    const fitZoomY = (canvas.height * padding) / mapH;
-    const fitZoom = Math.min(fitZoomX, fitZoomY);
+    const fitZoomX = (canvas.clientWidth * 0.95) / mapW;
+    const fitZoomY = (canvas.clientHeight * 0.95) / mapH;
     
-    // Минимальный зум - можно отдалить еще больше
-    camera.minZoom = fitZoom * 0.5;
-    camera.zoom = fitZoom;
+    camera.minZoom = Math.max(0.2, Math.min(fitZoomX, fitZoomY));
+    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.6);
     
-    // Центрируем карту по центру экрана
-    camera.x = canvas.width / 2;
-    camera.y = canvas.height / 2;
-    
+    camera.x = canvas.clientWidth / 2;
+    camera.y = canvas.clientHeight / 2;
     clampCamera();
 }
 
-// =========================================================
-// ОГРАНИЧЕНИЕ КАМЕРЫ - НЕ ДАЕМ КАРТЕ УХОДИТЬ ЗА ЭКРАН
-// =========================================================
 function clampCamera() {
     const map = getMapDimensions();
-    const mapW = map.w * camera.zoom;
-    const mapH = map.h * camera.zoom;
-    
-    const halfW = mapW / 2;
-    const halfH = mapH / 2;
+    const halfW = map.w / 2;
+    const halfH = map.h / 2;
 
-    // Если карта меньше экрана - центрируем
-    if (mapW < canvas.width) {
-        camera.x = canvas.width / 2;
+    const viewW = canvas.clientWidth;
+    const viewH = canvas.clientHeight;
+
+    if (map.w > viewW) {
+        camera.x = Math.max(viewW - halfW, Math.min(halfW, camera.x));
     } else {
-        // Иначе ограничиваем, чтобы края карты не выходили за экран
-        const minX = canvas.width - halfW;
-        const maxX = halfW;
-        camera.x = Math.max(minX, Math.min(maxX, camera.x));
+        camera.x = viewW / 2;
     }
 
-    if (mapH < canvas.height) {
-        camera.y = canvas.height / 2;
+    if (map.h > viewH) {
+        camera.y = Math.max(viewH - halfH, Math.min(halfH, camera.y));
     } else {
-        const minY = canvas.height - halfH;
-        const maxY = halfH;
-        camera.y = Math.max(minY, Math.min(maxY, camera.y));
+        camera.y = viewH / 2;
     }
 }
 
-// =========================================================
-// CANVAS - ВЫСОКОЕ РАЗРЕШЕНИЕ
-// =========================================================
+// Поддержка HiDPI / Retina для безупречной чёткости
 function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
-    canvas.style.width = window.innerWidth + 'px';
-    canvas.style.height = window.innerHeight + 'px';
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+
+    ctx.resetTransform();
     ctx.scale(dpr, dpr);
 }
 
 window.addEventListener('resize', () => {
-    if (isGameRunning) {
+    if (!gameScreen.classList.contains('hidden')) {
         resizeCanvas();
-        fitAndCenterMap();
-        render();
+        clampCamera();
     }
 });
 
-// =========================================================
-// ГЛАВНЫЙ ЦИКЛ РЕНДЕРА
-// =========================================================
 function renderLoop() {
-    if (isGameRunning) {
+    if (!gameScreen.classList.contains('hidden')) {
         animTimer += 0.04;
+        updateCars();
         render();
         requestAnimationFrame(renderLoop);
     }
 }
 
-// =========================================================
-// ОТРИСОВКА КАРТЫ
-// =========================================================
-function render() {
-    const cssWidth = window.innerWidth;
-    const cssHeight = window.innerHeight;
-    ctx.clearRect(0, 0, cssWidth, cssHeight);
+function updateCars() {
+    CARS.forEach(car => {
+        car.progress += car.speed;
+        if (car.progress > 1.0) {
+            car.progress = 0.0;
+        }
+    });
+}
 
+// ------------------------------------------
+// ПОСЛОЙНЫЙ РЕНДЕР КАРТЫ И МАТЕРИАЛОВ
+// ------------------------------------------
+function render() {
+    const viewW = canvas.clientWidth;
+    const viewH = canvas.clientHeight;
+    ctx.clearRect(0, 0, viewW, viewH);
+
+    // Включаем самое высокое качество фильтрации
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
     const map = getMapDimensions();
-    const mapW = map.w * camera.zoom;
-    const mapH = map.h * camera.zoom;
-    const mapLeft = camera.x - mapW / 2;
-    const mapTop = camera.y - mapH / 2;
+    const mapLeft = camera.x - map.w / 2;
+    const mapTop = camera.y - map.h / 2;
 
-    // 1. Рисуем газон
-    if (isGazonLoaded && gazonImg.width > 0) {
-        ctx.drawImage(gazonImg, mapLeft, mapTop, mapW, mapH);
+    // СЛОЙ 1: Цельная карта города
+    if (isMapLoaded) {
+        ctx.drawImage(mapImg, mapLeft, mapTop, map.w, map.h);
     } else {
-        const gradient = ctx.createLinearGradient(0, 0, cssWidth, cssHeight);
-        gradient.addColorStop(0, '#1a3a1a');
-        gradient.addColorStop(1, '#2d5a2d');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(mapLeft, mapTop, mapW, mapH);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(mapLeft, mapTop, map.w, map.h);
     }
 
-    // 2. Рисуем районы
-    DISTRICTS.forEach(d => {
-        if (d.loaded && d.img.width > 0) {
-            const dx = mapLeft + d.anchorX * mapW;
-            const dy = mapTop + d.anchorY * mapH;
-            const dw = mapW * d.scaleW;
-            const dh = mapH * d.scaleH;
+    // СЛОЙ 2: Машинки, едущие по дорогам (с укрытием за домами)
+    drawLayeredCars(mapLeft, mapTop, map.w, map.h);
 
-            ctx.drawImage(d.img, dx, dy, dw, dh);
-        }
-    });
-
-    // 3. Рисуем указатель на дом
-    drawHomePointer(mapLeft, mapTop, mapW, mapH);
+    // СЛОЙ 3: Неоновый указатель над домом игрока
+    drawHomePointer(mapLeft, mapTop, map.w, map.h);
 }
 
-// =========================================================
-// ПОЗИЦИЯ ДОМА ИГРОКА
-// =========================================================
+// Рисование машин с укрытием за домами
+function drawLayeredCars(mapLeft, mapTop, mapW, mapH) {
+    CARS.forEach(car => {
+        const lane = ROAD_LANES[car.laneIdx];
+        
+        const rx = lane.startX + (lane.endX - lane.startX) * car.progress;
+        const ry = lane.startY + (lane.endY - lane.startY) * car.progress;
+
+        let isHiddenBehindHouse = lane.isBehindHouse;
+        
+        if (!isHiddenBehindHouse) {
+            HOUSE_OCCLUSION_ZONES.forEach(zone => {
+                if (rx >= zone.x && rx <= zone.x + zone.w && ry >= zone.y && ry <= zone.y + zone.h) {
+                    isHiddenBehindHouse = true;
+                }
+            });
+        }
+
+        // Если машина проезжает за домом — она прячется за фасадом
+        if (isHiddenBehindHouse) return;
+
+        const cx = mapLeft + rx * mapW;
+        const cy = mapTop + ry * mapH;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate((lane.angle * Math.PI) / 180);
+
+        const cw = car.length * camera.zoom;
+        const ch = car.width * camera.zoom;
+
+        // Тень машины
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(-cw / 2, ch / 2 - 1, cw, ch / 2.5);
+
+        // Кузов
+        ctx.fillStyle = car.color;
+        ctx.fillRect(-cw / 2, -ch / 2, cw, ch);
+
+        // Стекло
+        ctx.fillStyle = '#bfdbfe';
+        ctx.fillRect(cw / 6, -ch / 2 + 1, cw / 3, ch - 2);
+
+        // Фары
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(cw / 2 - 1, -ch / 2 + 1, 2 * camera.zoom, 2 * camera.zoom);
+        ctx.fillRect(cw / 2 - 1, ch / 2 - 3, 2 * camera.zoom, 2 * camera.zoom);
+
+        ctx.restore();
+    });
+}
+
 function getHomePos(mapLeft, mapTop, mapW, mapH) {
     return {
-        x: mapLeft + mapW * 0.16,
-        y: mapTop + mapH * 0.22
+        x: mapLeft + mapW * 0.18,
+        y: mapTop + mapH * 0.28
     };
 }
 
-// =========================================================
-// УКАЗАТЕЛЬ НАД ДОМОМ
-// =========================================================
 function drawHomePointer(mapLeft, mapTop, mapW, mapH) {
     const home = getHomePos(mapLeft, mapTop, mapW, mapH);
     const offsetY = Math.sin(animTimer * 1.5) * 8;
     
     const indX = home.x;
-    const indY = home.y - 40 * camera.zoom + offsetY;
+    const indY = home.y - 45 * camera.zoom + offsetY;
 
     ctx.save();
-    const width = Math.max(20, 26 * camera.zoom);
-    const height = Math.max(24, 30 * camera.zoom);
+    const width = Math.max(22, 28 * camera.zoom);
+    const height = Math.max(26, 32 * camera.zoom);
 
-    // Свечение
-    const gradient = ctx.createRadialGradient(indX, indY - height/2, 0, indX, indY - height/2, 40 * camera.zoom);
-    gradient.addColorStop(0, 'rgba(0, 240, 255, 0.3)');
-    gradient.addColorStop(1, 'rgba(0, 240, 255, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(indX - 40 * camera.zoom, indY - 50 * camera.zoom, 80 * camera.zoom, 80 * camera.zoom);
-
-    // Указатель
     ctx.beginPath();
     ctx.moveTo(indX, indY + height / 2);
     ctx.lineTo(indX - width / 2, indY - height / 2);
@@ -335,25 +327,20 @@ function drawHomePointer(mapLeft, mapTop, mapW, mapH) {
 
     ctx.fillStyle = '#00f0ff';
     ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = 18;
     ctx.fill();
 
-    ctx.shadowBlur = 0;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = Math.max(2, 2.5 * camera.zoom);
+    ctx.lineWidth = Math.max(2.5, 3 * camera.zoom);
     ctx.stroke();
 
     ctx.restore();
 }
 
-// =========================================================
-// УПРАВЛЕНИЕ
-// =========================================================
 function setupControls() {
     let clickStartX = 0;
     let clickStartY = 0;
 
-    // MOUSE
     canvas.addEventListener('mousedown', (e) => {
         camera.isDragging = true;
         camera.lastX = e.clientX;
@@ -373,15 +360,12 @@ function setupControls() {
     });
 
     window.addEventListener('mouseup', (e) => {
-        const wasDragging = camera.isDragging;
         camera.isDragging = false;
-        const dist = Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY);
-        if (dist < 8) {
+        if (Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY) < 10) {
             checkHomeClick(e.clientX, e.clientY);
         }
     });
 
-    // TOUCH
     canvas.addEventListener('touchstart', (e) => {
         if (e.touches.length === 1) {
             camera.isDragging = true;
@@ -421,46 +405,35 @@ function setupControls() {
     }, { passive: true });
 
     canvas.addEventListener('touchend', (e) => {
-        camera.isDragging = false;
-        if (e.changedTouches.length > 0) {
+        if (camera.isDragging && e.changedTouches.length > 0) {
             const touch = e.changedTouches[0];
-            const dist = Math.hypot(touch.clientX - clickStartX, touch.clientY - clickStartY);
-            if (dist < 15) {
+            if (Math.hypot(touch.clientX - clickStartX, touch.clientY - clickStartY) < 15) {
                 checkHomeClick(touch.clientX, touch.clientY);
             }
         }
-    }, { passive: true });
+        camera.isDragging = false;
+    });
 
-    // КОЛЕСИКО МЫШИ
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.08 : 0.92;
+        const factor = e.deltaY < 0 ? 1.06 : 0.94;
         zoomToPoint(e.clientX, e.clientY, factor);
     }, { passive: false });
 }
 
-// =========================================================
-// ПРОВЕРКА КЛИКА ПО ДОМУ
-// =========================================================
 function checkHomeClick(clickX, clickY) {
     const map = getMapDimensions();
-    const mapW = map.w * camera.zoom;
-    const mapH = map.h * camera.zoom;
-    const mapLeft = camera.x - mapW / 2;
-    const mapTop = camera.y - mapH / 2;
-    const home = getHomePos(mapLeft, mapTop, mapW, mapH);
+    const mapLeft = camera.x - map.w / 2;
+    const mapTop = camera.y - map.h / 2;
+    const home = getHomePos(mapLeft, mapTop, map.w, map.h);
 
     const clickDist = Math.hypot(clickX - home.x, clickY - home.y);
-    const threshold = Math.max(35, 50 * camera.zoom);
 
-    if (clickDist < threshold) {
+    if (clickDist < 65 * camera.zoom || clickDist < 45) {
         apartmentScreen.classList.remove('hidden');
     }
 }
 
-// =========================================================
-// ЗУМ В ТОЧКЕ
-// =========================================================
 function zoomToPoint(focalX, focalY, factor) {
     const oldZoom = camera.zoom;
     let newZoom = camera.zoom * factor;
@@ -474,4 +447,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-                  }
+     }
