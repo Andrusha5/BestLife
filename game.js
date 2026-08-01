@@ -1,5 +1,5 @@
 // =========================================================
-// BESTLIFE - GAME ENGINE WITH TIME & BED SLEEP MECHANICS
+// BESTLIFE - FULLSCREEN CITY MAP & INTERACTIVE APARTMENT
 // =========================================================
 
 // Камера
@@ -7,7 +7,7 @@ const camera = {
     x: 0,
     y: 0,
     zoom: 0.5,
-    minZoom: 0.22,
+    minZoom: 0.3,
     maxZoom: 2.2,
     isDragging: false,
     lastX: 0,
@@ -17,7 +17,7 @@ const camera = {
 
 let animTimer = 0;
 
-// Загрузка цельной карты города (city_map.png, map.png или gazon.png)
+// Загрузка цельной картинки карты города
 const mapImg = new Image();
 let isMapLoaded = false;
 
@@ -44,9 +44,10 @@ mapImg.onerror = () => {
 
 tryLoadNextMapSource();
 
-// --- 🕒 СИСТЕМА ИГРОВОГО ВРЕМЕНИ И ДАТЫ ---
+// --- 🕒 СИСТЕМА ИГРОВОГО ВРЕМЕНИ (СТАРТ 06:00, СОХРАНЕНИЕ В ПАМЯТИ) ---
 // 10 реальных минут = 24 игровых часа (1 день).
-let gameMinutes = 0; 
+// 06:00 = 360 игровых минут от начала суток
+let gameMinutes = 360; 
 let currentDay = 1;
 let currentMonthIdx = 4; // Май
 
@@ -58,9 +59,9 @@ function loadSavedTime() {
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
-            gameMinutes = parsed.minutes || 0;
-            currentDay = parsed.day || 1;
-            currentMonthIdx = parsed.monthIdx !== undefined ? parsed.monthIdx : 4;
+            if (parsed.minutes !== undefined) gameMinutes = parsed.minutes;
+            if (parsed.day !== undefined) currentDay = parsed.day;
+            if (parsed.monthIdx !== undefined) currentMonthIdx = parsed.monthIdx;
         } catch(e) {}
     }
 }
@@ -82,23 +83,20 @@ function updateGameClock() {
     const dt = (now - lastFrameTime) / 1000;
     lastFrameTime = now;
 
-    if (!gameScreen.classList.contains('hidden')) {
-        // За 1 секунду реальности проходит 2.4 игровых минуты
-        gameMinutes += dt * 2.4;
+    // Время идёт всегда
+    gameMinutes += dt * 2.4;
 
-        if (gameMinutes >= 1440) { // 24 часа = новый день
-            gameMinutes -= 1440;
-            currentDay++;
+    if (gameMinutes >= 1440) { // 24 часа = новый день
+        gameMinutes -= 1440;
+        currentDay++;
 
-            if (currentDay > DAYS_IN_MONTHS[currentMonthIdx]) {
-                currentDay = 1;
-                currentMonthIdx = (currentMonthIdx + 1) % 12;
-            }
-            saveTimeData();
+        if (currentDay > DAYS_IN_MONTHS[currentMonthIdx]) {
+            currentDay = 1;
+            currentMonthIdx = (currentMonthIdx + 1) % 12;
         }
-
-        updateClockUI();
     }
+    saveTimeData();
+    updateClockUI();
 }
 
 function updateClockUI() {
@@ -156,11 +154,16 @@ function selectGender(gender) {
 document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.remove('hidden'));
 document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
 
+// МГНОВЕННЫЙ БЕЗ ЛАГОВ ВЫХОД ИЗ КВАРТИРЫ В ГОРОД
 document.getElementById('btn-exit-apartment').addEventListener('click', () => {
     apartmentScreen.classList.add('hidden');
+    // Сразу же рендерим кадр карты города без задержки
+    resizeCanvas();
+    fitAndCenterMap();
+    render();
 });
 
-// КЛИК ПО КРОВАТИ В КВАРТИРЕС
+// КЛИК ПО КРОВАТИ В КВАРТИРЕ
 if (bedImg) {
     bedImg.addEventListener('click', () => {
         openBedInteractionModal();
@@ -170,7 +173,6 @@ if (bedImg) {
 function openBedInteractionModal() {
     const currentHours = Math.floor(gameMinutes / 60);
 
-    // Логика День (08:00 - 20:00) vs Ночь (20:00 - 08:00)
     if (currentHours >= 8 && currentHours < 20) {
         bedModalTitle.textContent = '☀️ Дневное время';
         bedModalText.textContent = 'Днём спать неэффективно, энергия мало восстанавливается!';
@@ -193,7 +195,6 @@ if (btnCloseBedModal) {
 if (btnSleepAction) {
     btnSleepAction.addEventListener('click', () => {
         bedModal.classList.add('hidden');
-        // Заглушка взаимодействия сна (позже тут будет засыпание)
     });
 }
 
@@ -222,27 +223,29 @@ function fitAndCenterMap() {
     const viewW = window.innerWidth;
     const viewH = window.innerHeight;
 
-    const fitZoomX = (viewW * 0.92) / mapW;
-    const fitZoomY = (viewH * 0.92) / mapH;
+    // Масштабируем карту так, чтобы она полностью закрывала экран
+    const fitZoomX = viewW / mapW;
+    const fitZoomY = viewH / mapH;
     
-    camera.minZoom = Math.max(0.2, Math.min(fitZoomX, fitZoomY));
-    camera.zoom = Math.min(Math.max(fitZoomX, fitZoomY), 0.55);
+    camera.minZoom = Math.max(fitZoomX, fitZoomY);
+    camera.zoom = Math.max(fitZoomX, fitZoomY);
     
     camera.x = viewW / 2;
     camera.y = viewH / 2;
     clampCamera();
 }
 
+// ПЛОТНЫЕ ГРАНИЦЫ: Карта занимает весь экран, а края слегка показывают окружение
 function clampCamera() {
     const map = getMapDimensions();
     const viewW = window.innerWidth;
     const viewH = window.innerHeight;
 
-    const maxOffsetW = map.w * 0.35;
-    const maxOffsetH = map.h * 0.35;
+    const maxPanX = (map.w - viewW) / 2 + (viewW * 0.08);
+    const maxPanY = (map.h - viewH) / 2 + (viewH * 0.08);
 
-    camera.x = Math.max(viewW / 2 - maxOffsetW, Math.min(viewW / 2 + maxOffsetW, camera.x));
-    camera.y = Math.max(viewH / 2 - maxOffsetH, Math.min(viewH / 2 + maxOffsetH, camera.y));
+    camera.x = Math.max(viewW / 2 - maxPanX, Math.min(viewW / 2 + maxPanX, camera.x));
+    camera.y = Math.max(viewH / 2 - maxPanY, Math.min(viewH / 2 + maxPanY, camera.y));
 }
 
 function resizeCanvas() {
@@ -267,14 +270,18 @@ window.addEventListener('resize', () => {
 });
 
 function renderLoop() {
+    animTimer += 0.04;
+    updateGameClock();
+
     if (!gameScreen.classList.contains('hidden')) {
-        animTimer += 0.04;
-        updateGameClock();
         render();
-        requestAnimationFrame(renderLoop);
     }
+    requestAnimationFrame(renderLoop);
 }
 
+// ------------------------------------------
+// ПОЛНОЭКРАННЫЙ РЕНДЕР КАРТЫ СИТИ
+// ------------------------------------------
 function render() {
     const viewW = window.innerWidth;
     const viewH = window.innerHeight;
@@ -287,61 +294,22 @@ function render() {
     const mapLeft = camera.x - map.w / 2;
     const mapTop = camera.y - map.h / 2;
 
-    // СЛОЙ 0: Лесной покров
-    drawClashForestBackground(viewW, viewH, mapLeft, mapTop, map.w, map.h);
-
-    // СЛОЙ 1: Карта города
+    // Рендер картинок без лишних кружков и кубиков
     if (isMapLoaded) {
         ctx.drawImage(mapImg, mapLeft, mapTop, map.w, map.h);
+    } else {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(mapLeft, mapTop, map.w, map.h);
     }
 
-    // СЛОЙ 2: Тень границ
-    drawMapForestBorderShadow(mapLeft, mapTop, map.w, map.h);
-
-    // СЛОЙ 3: Неоновый указатель над домом игрока
+    // Указатель стрелка над домом игрока
     drawHomePointer(mapLeft, mapTop, map.w, map.h);
-}
-
-function drawClashForestBackground(viewW, viewH, mapLeft, mapTop, mapW, mapH) {
-    ctx.fillStyle = '#143317';
-    ctx.fillRect(0, 0, viewW, viewH);
-
-    const treeRadius = Math.max(16, 22 * camera.zoom);
-    const step = treeRadius * 1.5;
-
-    ctx.fillStyle = '#112913';
-    for (let x = -step; x < viewW + step; x += step) {
-        for (let y = -step; y < viewH + step; y += step) {
-            if (x < mapLeft - 10 || x > mapLeft + mapW + 10 || y < mapTop - 10 || y > mapTop + mapH + 10) {
-                ctx.beginPath();
-                ctx.arc(x, y, treeRadius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-
-    ctx.fillStyle = '#19421c';
-    for (let x = -step + 5; x < viewW + step; x += step) {
-        for (let y = -step + 5; y < viewH + step; y += step) {
-            if (x < mapLeft - 10 || x > mapLeft + mapW + 10 || y < mapTop - 10 || y > mapTop + mapH + 10) {
-                ctx.beginPath();
-                ctx.arc(x - 3, y - 3, treeRadius * 0.8, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-}
-
-function drawMapForestBorderShadow(mapLeft, mapTop, mapW, mapH) {
-    ctx.strokeStyle = '#0e210f';
-    ctx.lineWidth = Math.max(6, 12 * camera.zoom);
-    ctx.strokeRect(mapLeft, mapTop, mapW, mapH);
 }
 
 function getHomePos(mapLeft, mapTop, mapW, mapH) {
     return {
-        x: mapLeft + mapW * 0.18,
-        y: mapTop + mapH * 0.28
+        x: mapLeft + mapW * 0.48,
+        y: mapTop + mapH * 0.49
     };
 }
 
@@ -484,4 +452,4 @@ function zoomToPoint(focalX, focalY, factor) {
     camera.zoom = newZoom;
 
     clampCamera();
-}
+        }
