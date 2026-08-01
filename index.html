@@ -9,7 +9,7 @@
 </head>
 <body>
 
-    <!-- 1. НИТРО / ИНТРО -->
+    <!-- 1. ИНТРО / НИТРО -->
     <div id="intro-screen">
         <div class="intro-center">
             <h1 class="intro-title">BestLife</h1>
@@ -66,6 +66,13 @@
     <div id="game-screen" class="hidden">
         <canvas id="gameCanvas"></canvas>
         
+        <!-- ВЕРХНЯЯ ПАНЕЛЬ С ВРЕМЕНЕМ И ДАТОЙ -->
+        <div id="time-pill">
+            <span id="hud-date-text">1 май</span>
+            <span class="pill-divider">•</span>
+            <span id="hud-clock-text">00:00</span>
+        </div>
+
         <div id="game-ui">
             <button id="btn-menu-back" class="hud-btn">🚪 В меню</button>
         </div>
@@ -83,4 +90,4 @@
 
     <script src="game.js"></script>
 </body>
-</html>
+                </html>
