@@ -14,7 +14,7 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: #143217;
+    background-color: #0b0f19;
     color: #fff;
     touch-action: none;
 }
@@ -202,18 +202,18 @@ canvas {
     display: block; 
     width: 100%; 
     height: 100%; 
-    background-color: #1a3d1c;
+    background-color: #0b0f19;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
 }
 
-/* ВЕРХНИЙ СТЕКЛЯННЫЙ ОВАЛ ВРЕМЕНИ И ДАТЫ */
+/* ВЕРХНИЙ СТЕКЛЯННЫЙ ОВАЛ ВРЕМЕНИ И ДАТЫ (НЕ МЕШАЕТ) */
 #time-pill {
-    position: absolute;
+    position: fixed;
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(15, 23, 42, 0.88);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.22);
@@ -225,9 +225,10 @@ canvas {
     display: flex;
     align-items: center;
     gap: 12px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.45);
-    z-index: 120;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+    z-index: 1800; /* Отображается поверх всех экранов */
     letter-spacing: 0.5px;
+    pointer-events: none;
 }
 
 #hud-clock-text {
@@ -243,7 +244,7 @@ canvas {
     font-size: 0.8rem;
 }
 
-/* --- 4. ЭКРАН КВАРТИРЫ И КРОВАТИ --- */
+/* --- 4. ЭКРАН КВАРТИРЫ (БЕЗ РАМОК, НА ВЕСЬ ЭКРАН) --- */
 #apartment-screen {
     position: fixed;
     top: 0;
@@ -255,18 +256,7 @@ canvas {
     display: flex;
     flex-direction: column;
     align-items: center;
-}
-
-.apartment-top-title {
-    position: absolute;
-    top: 22px;
-    width: 100%;
-    text-align: center;
-    font-size: 1.3rem;
-    font-weight: 900;
-    color: #ffffff;
-    letter-spacing: 2px;
-    z-index: 1600;
+    justify-content: center;
 }
 
 .back-circle-btn {
@@ -276,8 +266,8 @@ canvas {
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     color: #fff;
     font-size: 1.4rem;
     font-weight: 900;
@@ -295,34 +285,33 @@ canvas {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding-top: 50px;
 }
 
 .room-container {
     position: relative;
-    display: inline-block;
-    max-width: 92vw;
-    max-height: 82vh;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 #apartment-img {
-    display: block;
-    max-width: 92vw;
-    max-height: 82vh;
-    object-fit: contain;
-    border-radius: 12px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Квартира на весь экран без черных полос */
 }
 
-/* ИНТЕРАКТИВНАЯ КРОВАТЬ С ПОДСВЕТКОЙ */
+/* ИНТЕРАКТИВНАЯ КРОВАТЬ (ПОДГОНЕНА ЛЕВЕЕ) */
 #bed-img {
     position: absolute;
-    bottom: 12%;
-    right: 15%;
-    width: 32%;
+    bottom: 22%;
+    left: 38%; /* Перемещена левее под тумбу и столик */
+    width: 42%;
     height: auto;
     cursor: pointer;
     z-index: 1650;
-    filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.7));
+    filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8));
     animation: bedPulseGlow 2.2s infinite alternate;
 }
 
@@ -332,7 +321,7 @@ canvas {
 
 @keyframes bedPulseGlow {
     0% { filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5)); }
-    100% { filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.95)); }
+    100% { filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.95)); }
 }
 
 /* МОДАЛЬНЫЕ ОКНА */
@@ -378,4 +367,4 @@ canvas {
     margin: 20px 0; 
     color: #94a3b8; 
     font-size: 0.95rem; 
-              }
+    }
